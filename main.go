@@ -1,26 +1,25 @@
 package main
 
 import (
+	router2 "auth-service/src/http/router"
 	"auth-service/src/infrastructure/postgresqldb"
-	"auth-service/src/infrastructure/redisdb"
 	"auth-service/src/infrastructure/seeder"
-	"auth-service/src/usecase"
-	"github.com/gin-gonic/gin"
+	interactor2 "auth-service/src/interactor"
 )
 
 func main() {
 
-	conn := redisdb.NewReddisConn()
-
-	ruc := usecase.NewRedisUsecase(conn)
-
-	tuc := usecase.NewJwtUsecase(ruc)
 
 	postgreConn := postgresqldb.NewDBConnection()
 
 	seeder.SeedData(postgreConn)
 
-	router := gin.Default()
+	interactor := interactor2.NewInteractor(postgreConn)
+	appHandler := interactor.NewAppHandler()
+
+	router := router2.NewRouter(appHandler)
+
+	/*router := gin.Default()
 
 	router.GET("/generateJWT", func(c *gin.Context) {
 		token, err := tuc.CreateToken(12)
@@ -47,7 +46,9 @@ func main() {
 			return
 		}
 		c.JSON(200, s)
-	})
+	})*/
+
+
 
 	router.Run("127.0.0.1:8081")
 }

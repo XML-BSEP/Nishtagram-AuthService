@@ -2,6 +2,7 @@ package repository
 
 import (
 	"auth-service/src/domain"
+	"context"
 	"gorm.io/gorm"
 )
 
@@ -10,19 +11,19 @@ type roleRepository struct {
 }
 
 type RoleRepository interface {
-	Create(role *domain.Role) error
-	GetByName(roleName string) (*domain.Role, error)
+	Create(context context.Context, role *domain.Role) error
+	GetByName(context context.Context, roleName string) (*domain.Role, error)
 }
 
-func NewRoleRepository(Conn *gorm.DB) RoleRepository {
-	return &roleRepository{}
+func NewRoleRepository(conn *gorm.DB) RoleRepository {
+	return &roleRepository{Conn: conn}
 }
 
-func (r *roleRepository) Create(role *domain.Role) error {
+func (r *roleRepository) Create(context context.Context, role *domain.Role) error {
 	return r.Conn.Create(role).Error
 }
 
-func (r *roleRepository) GetByName(roleName string) (*domain.Role, error) {
+func (r *roleRepository) GetByName(context context.Context, roleName string) (*domain.Role, error) {
 	var role *domain.Role
 	err := r.Conn.Where("RoleName=?", roleName).First(&role).Error
 	return role, err

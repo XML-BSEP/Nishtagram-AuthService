@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"auth-service/src/domain"
+	"context"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/twinj/uuid"
@@ -14,14 +15,14 @@ type jwtUsecase struct {
 }
 
 type JwtUsecase interface {
-	CreateToken(userid uint64) (*domain.TokenDetails, error)
-	ValidateToken(tokenString string) error
+	CreateToken(context context.Context, userid uint64) (*domain.TokenDetails, error)
+	ValidateToken(context context.Context, tokenString string) error
 }
 func NewJwtUsecase(usecase RedisUsecase) JwtUsecase {
 	return &jwtUsecase{RedisUsecase: usecase}
 }
 
-func (j *jwtUsecase) CreateToken(userid uint64) (*domain.TokenDetails, error) {
+func (j *jwtUsecase) CreateToken(context context.Context, userid uint64) (*domain.TokenDetails, error) {
 	td := &domain.TokenDetails{}
 	td.AtExpires = time.Now().Add(time.Minute * 15).Unix()
 	td.TokenUuid = uuid.NewV4().String()
@@ -56,7 +57,7 @@ func (j *jwtUsecase) CreateToken(userid uint64) (*domain.TokenDetails, error) {
 	return td, nil
 }
 
-func (j *jwtUsecase) ValidateToken(tokenString string) error {
+func (j *jwtUsecase) ValidateToken(context context.Context, tokenString string) error {
 	token, err := verifyToken(tokenString)
 	if err != nil {
 		return err
