@@ -4,6 +4,7 @@ import (
 	"auth-service/src/infrastructure/dto"
 	"auth-service/src/usecase"
 	"encoding/json"
+	"fmt"
 	"github.com/gin-gonic/gin"
 )
 
@@ -28,6 +29,7 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 	var authenticationDto dto.AuthenticationDto
 
 	decoder := json.NewDecoder(ctx.Request.Body)
+	fmt.Println(ctx.Request.Body)
 
 	if err := decoder.Decode(&authenticationDto); err != nil {
 		ctx.JSON(400, gin.H{"message" : "Token decoding error"})

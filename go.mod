@@ -11,6 +11,7 @@ require (
 	github.com/rs/cors v1.7.0 // indirect
 	github.com/spf13/viper v1.7.1
 	github.com/twinj/uuid v1.0.0
+	github.com/unrolled/secure v1.0.9 // indirect
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a // indirect
 	golang.org/x/text v0.3.6 // indirect
 	gopkg.in/stretchr/testify.v1 v1.2.2 // indirect
