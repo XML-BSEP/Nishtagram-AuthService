@@ -5,6 +5,7 @@ import (
 	"auth-service/src/infrastructure/postgresqldb"
 	"auth-service/src/infrastructure/seeder"
 	interactor2 "auth-service/src/interactor"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -18,7 +19,7 @@ func main() {
 	appHandler := interactor.NewAppHandler()
 
 	router := router2.NewRouter(appHandler)
-
+	router.Use(gin.Logger())
 	/*router := gin.Default()
 
 	router.GET("/generateJWT", func(c *gin.Context) {
@@ -50,5 +51,5 @@ func main() {
 
 
 
-	router.Run("127.0.0.1:8081")
+	router.Run("localhost:8091")
 }
