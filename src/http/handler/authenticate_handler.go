@@ -10,6 +10,7 @@ import (
 type authenticateHandler struct {
 	AuthenticationUsecase usecase.AuthenticationUsecase
 	JwtUsecase usecase.JwtUsecase
+	ProfileInfoUsecase usecase.ProfileInfoUsecase
 }
 
 type AuthenticationHandler interface {
@@ -18,11 +19,36 @@ type AuthenticationHandler interface {
 	Logout(ctx *gin.Context)
 }
 
-func NewAuthenticationHandler(authUsecase usecase.AuthenticationUsecase, jwtUSecase usecase.JwtUsecase) AuthenticationHandler {
-	return &authenticateHandler{authUsecase, jwtUSecase}
+func NewAuthenticationHandler(authUsecase usecase.AuthenticationUsecase, jwtUSecase usecase.JwtUsecase, profileInfoUsecase usecase.ProfileInfoUsecase) AuthenticationHandler {
+	return &authenticateHandler{authUsecase, jwtUSecase,  profileInfoUsecase}
 }
 
 func (a *authenticateHandler) Login(ctx *gin.Context) {
+
+	var authenticationDto dto.AuthenticationDto
+
+	decoder := json.NewDecoder(ctx.Request.Body)
+
+	if err := decoder.Decode(&authenticationDto); err != nil {
+		ctx.JSON(400, gin.H{"message" : "Token decoding error"})
+		ctx.Abort()
+		return
+	}
+
+	profileInfo, err := a.ProfileInfoUsecase.GetProfileInfoByUsername(authenticationDto.Username)
+
+	if err != nil {
+		ctx.JSON(400, gin.H{"message" : "Wrong username or password"})
+		ctx.Abort()
+		return
+	}
+
+	if err := usecase.VerifyPassword(authenticationDto.Password, profileInfo.Password); err != nil {
+		ctx.JSON(400, gin.H{"message" : "Wrong username or password"})
+		ctx.Abort()
+		return
+	}
+
 	token, err := a.JwtUsecase.CreateToken(ctx, 12)
 	if err != nil {
 		ctx.JSON(400, gin.H{"message" : "Can not create token"})

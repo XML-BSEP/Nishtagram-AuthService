@@ -12,15 +12,15 @@ type interactor struct {
 	Conn *gorm.DB
 }
 
-
-
 type Interactor interface {
 	NewProfileInfoRepository() repository.ProfileInfoRepository
 	NewRoleRepository() repository.RoleRepository
 
+
 	NewRedisUsecase() usecase.RedisUsecase
 	NewAuthenticationUsecase() usecase.AuthenticationUsecase
 	NewJwtUsecase() usecase.JwtUsecase
+	NewProfileInfoUsecase() usecase.ProfileInfoUsecase
 
 	NewAppHandler() AppHandler
 	NewAuthenticationHandler() handler.AuthenticationHandler
@@ -66,6 +66,9 @@ func (i *interactor) NewJwtUsecase() usecase.JwtUsecase {
 }
 
 func (i *interactor) NewAuthenticationHandler() handler.AuthenticationHandler {
-	return handler.NewAuthenticationHandler(i.NewAuthenticationUsecase(), i.NewJwtUsecase())
+	return handler.NewAuthenticationHandler(i.NewAuthenticationUsecase(), i.NewJwtUsecase(), i.NewProfileInfoUsecase())
 }
 
+func (i *interactor) NewProfileInfoUsecase() usecase.ProfileInfoUsecase {
+	return usecase.NewProfileInfoUsecase(i.NewProfileInfoRepository())
+}
