@@ -7,7 +7,7 @@ import (
 )
 
 type RedisUsecase interface {
-	AddKeyValueSet(context context.Context, key string, value interface{}, expiration int) error
+	AddKeyValueSet(context context.Context, key string, value interface{},  expiration time.Duration) error
 	GetValueByKey(context context.Context, key string) (string, error)
 	DeleteValueByKey(context context.Context, key string) error
 	ExistsByKey(context context.Context, key string) bool
@@ -25,8 +25,8 @@ func (r *redisUsecase) GetValueByKey(context context.Context, key string) (strin
 	return r.RedisClient.Get(context, key).Result()
 }
 
-func (r *redisUsecase) AddKeyValueSet(context context.Context, key string, value interface{}, expiration int) error {
-	return r.RedisClient.Set(context, key, value, time.Duration(expiration)).Err()
+func (r *redisUsecase) AddKeyValueSet(context context.Context, key string, value interface{}, expiration time.Duration) error {
+	return r.RedisClient.Set(context, key, value, expiration).Err()
 }
 
 func (r *redisUsecase) DeleteValueByKey(context context.Context, key string) error {

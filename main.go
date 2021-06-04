@@ -1,53 +1,29 @@
 package main
 
 import (
+	"auth-service/src/http/middleware"
+	router2 "auth-service/src/http/router"
 	"auth-service/src/infrastructure/postgresqldb"
-	"auth-service/src/infrastructure/redisdb"
 	"auth-service/src/infrastructure/seeder"
-	"auth-service/src/usecase"
+	interactor2 "auth-service/src/interactor"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
 
-	conn := redisdb.NewReddisConn()
-
-	ruc := usecase.NewRedisUsecase(conn)
-
-	tuc := usecase.NewJwtUsecase(ruc)
 
 	postgreConn := postgresqldb.NewDBConnection()
 
 	seeder.SeedData(postgreConn)
 
-	router := gin.Default()
+	interactor := interactor2.NewInteractor(postgreConn)
+	appHandler := interactor.NewAppHandler()
 
-	router.GET("/generateJWT", func(c *gin.Context) {
-		token, err := tuc.CreateToken(12)
-		if err != nil {
-			c.JSON(400, "Nema")
-			c.Abort()
-		}
-		c.SetCookie("token", token.AccessToken, 10, "/", "127.0.0.1", true, true)
-	})
+	router := router2.NewRouter(appHandler)
+	router.Use(gin.Logger())
+	router.Use(middleware.CORSMiddleware())
 
-	router.POST("/validateJWT", func(c *gin.Context) {
-		//byteBody, _ := ioutil.ReadAll(c.Request.Body)
-		s, err := c.Cookie("token")
 
-		if err != nil {
-			c.JSON(400, "Ne mere procitat kuki")
-			c.Abort()
-			return
-		}
 
-		if err := tuc.ValidateToken(s); err != nil {
-			c.JSON(401, "Token invalid")
-			c.Abort()
-			return
-		}
-		c.JSON(200, s)
-	})
-
-	router.Run("127.0.0.1:8081")
+	router.RunTLS("localhost:8091", "certificate/cert.pem", "certificate/key.pem")
 }
