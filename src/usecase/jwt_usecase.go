@@ -16,7 +16,7 @@ type jwtUsecase struct {
 
 type JwtUsecase interface {
 	CreateToken(context context.Context, userid uint64) (*domain.TokenDetails, error)
-	ValidateToken(context context.Context, tokenString string) error
+	ValidateToken(context context.Context, tokenString string) (string,error)
 }
 func NewJwtUsecase(usecase RedisUsecase) JwtUsecase {
 	return &jwtUsecase{RedisUsecase: usecase}
@@ -57,15 +57,15 @@ func (j *jwtUsecase) CreateToken(context context.Context, userid uint64) (*domai
 	return td, nil
 }
 
-func (j *jwtUsecase) ValidateToken(context context.Context, tokenString string) error {
+func (j *jwtUsecase) ValidateToken(context context.Context, tokenString string) (string,error) {
 	token, err := verifyToken(tokenString)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if _, ok := token.Claims.(jwt.Claims); !ok && !token.Valid {
-		return err
+		return "", err
 	}
-	return nil
+	return tokenString, nil
 }
 
 func verifyToken(tokenString string) (*jwt.Token, error) {

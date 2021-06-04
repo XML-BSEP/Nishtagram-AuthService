@@ -26,10 +26,12 @@ func NewAuthenticationHandler(authUsecase usecase.AuthenticationUsecase, jwtUSec
 
 func (a *authenticateHandler) Login(ctx *gin.Context) {
 
+
+	auth := ctx.GetHeader("Content-Type")
+	fmt.Println(auth)
 	var authenticationDto dto.AuthenticationDto
 
 	decoder := json.NewDecoder(ctx.Request.Body)
-	fmt.Println(ctx.Request.Body)
 
 	if err := decoder.Decode(&authenticationDto); err != nil {
 		ctx.JSON(400, gin.H{"message" : "Token decoding error"})
@@ -82,13 +84,14 @@ func (a *authenticateHandler) ValidateToken(ctx *gin.Context) {
 		return
 	}
 
-	if err := a.JwtUsecase.ValidateToken(ctx, at); err != nil {
+	token, err := a.JwtUsecase.ValidateToken(ctx, at);
+	if err != nil || token == ""{
 		ctx.JSON(401, gin.H{"message" : "Invalid token"})
 		ctx.Abort()
 		return
 	}
 
-	ctx.JSON(200, gin.H{"message" : "Token is valid"})
+	ctx.JSON(200, token)
 
 }
 
