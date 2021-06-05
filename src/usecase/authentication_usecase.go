@@ -16,8 +16,8 @@ type authenticationUsecase struct {
 type AuthenticationUsecase interface {
 	SaveAuthToken(ctx context.Context, userId uint, td *domain.TokenDetails) error
 	SaveRefreshToken(ctx context.Context, userId uint, td *domain.TokenDetails) error
-	FetchAuthToken(ctx context.Context, tokenUuid string) (string, error)
-	FetchRefreshToken(ctx context.Context, refreshTokenUuid string) (string, error)
+	FetchAuthToken(ctx context.Context, tokenUuid string) ([]byte, error)
+	FetchRefreshToken(ctx context.Context, refreshTokenUuid string) ([]byte, error)
 	DeleteAuthToken(ctx context.Context, tokenUuid string) error
 }
 
@@ -38,12 +38,12 @@ func (a *authenticationUsecase) SaveAuthToken(ctx context.Context, userId uint, 
 	return nil
 }
 
-func (a *authenticationUsecase) FetchAuthToken(ctx context.Context, tokenUuid string) (string, error) {
+func (a *authenticationUsecase) FetchAuthToken(ctx context.Context, tokenUuid string) ([]byte, error) {
 	key := authToken + tokenUuid
 	value, err := a.RedisUsecase.GetValueByKey(ctx, key)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	return value, err
@@ -61,12 +61,12 @@ func (a *authenticationUsecase) SaveRefreshToken(ctx context.Context, userId uin
 	return nil
 }
 
-func (a *authenticationUsecase) FetchRefreshToken(ctx context.Context, refreshTokenUuid string) (string, error) {
+func (a *authenticationUsecase) FetchRefreshToken(ctx context.Context, refreshTokenUuid string) ([]byte, error) {
 	key := refreshToken + refreshTokenUuid
 	value, err := a.RedisUsecase.GetValueByKey(ctx, key)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	return value, err

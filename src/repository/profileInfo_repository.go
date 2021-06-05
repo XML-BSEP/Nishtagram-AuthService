@@ -2,6 +2,7 @@ package repository
 
 import (
 	"auth-service/src/domain"
+	"context"
 	"gorm.io/gorm"
 )
 
@@ -9,27 +10,49 @@ type profileInfoRepository struct {
 	Conn *gorm.DB
 }
 
+
 type ProfileInfoRepository interface {
-	GetProfileInfoByEmail(email string) (domain.ProfileInfo, error)
-	GetProfileInfoByUsername(username string) (domain.ProfileInfo, error)
+	GetProfileInfoByEmail(context context.Context, email string) (domain.ProfileInfo, error)
+	GetProfileInfoByUsername(context context.Context, username string) (domain.ProfileInfo, error)
+	Create(context context.Context, profileInfo *domain.ProfileInfo) error
+	GetProfileinfoByUsernameOrEmail(context context.Context, username, email string) error
 }
 
 func NewProfileInfoRepository(conn *gorm.DB) ProfileInfoRepository {
 	return &profileInfoRepository{Conn: conn}
 }
 
-func (p *profileInfoRepository) GetProfileInfoByEmail(email string) (domain.ProfileInfo, error) {
+func (p *profileInfoRepository) GetProfileInfoByEmail(context context.Context, email string) (domain.ProfileInfo, error) {
 	profileInfo := domain.ProfileInfo{}
 	err := p.Conn.Where("email = ?", email).Take(&profileInfo).Error
 
 	return profileInfo, err
 }
 
-func (p *profileInfoRepository) GetProfileInfoByUsername(username string) (domain.ProfileInfo, error) {
+func (p *profileInfoRepository) GetProfileInfoByUsername(context context.Context, username string) (domain.ProfileInfo, error) {
 	profileInfo := domain.ProfileInfo{}
 	err := p.Conn.Where("username = ?", username).Take(&profileInfo).Error
 
 	return profileInfo, err
 }
+
+func (p *profileInfoRepository) Create(context context.Context, profileInfo *domain.ProfileInfo) error {
+	return p.Conn.Create(profileInfo).Error
+}
+
+func (p *profileInfoRepository) GetByUsernameOrEmail(context context.Context, username, email string) (domain.ProfileInfo, error) {
+	var value domain.ProfileInfo
+	err := p.Conn.Where("username = ? or email = ?", username, email).Take(&value).Error
+	return value, err
+}
+
+func (p *profileInfoRepository) GetProfileinfoByUsernameOrEmail(context context.Context, username, email string)  error{
+	var value *domain.ProfileInfo
+	return p.Conn.Where("username = ? or email = ?", username, email).Take(&value).Error
+
+}
+
+
+
 
 
