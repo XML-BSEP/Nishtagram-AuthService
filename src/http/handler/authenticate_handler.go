@@ -39,7 +39,7 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 		return
 	}
 
-	profileInfo, err := a.ProfileInfoUsecase.GetProfileInfoByUsername(authenticationDto.Username)
+	profileInfo, err := a.ProfileInfoUsecase.GetProfileInfoByUsername(ctx, authenticationDto.Username)
 
 	if err != nil {
 		ctx.JSON(400, gin.H{"message" : "Wrong username or password"})
@@ -84,7 +84,7 @@ func (a *authenticateHandler) ValidateToken(ctx *gin.Context) {
 		return
 	}
 
-	token, err := a.JwtUsecase.ValidateToken(ctx, at);
+	token, err := a.JwtUsecase.ValidateToken(ctx, string(at));
 	if err != nil || token == ""{
 		ctx.JSON(401, gin.H{"message" : "Invalid token"})
 		ctx.Abort()

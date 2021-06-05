@@ -11,6 +11,8 @@ func NewRouter(handler interactor.AppHandler) *gin.Engine {
 	router.POST("/validateToken", handler.ValidateToken)
 	router.POST("/login", handler.Login)
 	router.POST("/logout", handler.Logout)
+	router.POST("/register", handler.Register)
+	router.POST("/confirmAccount", handler.ConfirmAccount)
 
 	return router
 }
