@@ -59,10 +59,14 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 		ctx.Abort()
 		return
 	}
-
+	authenticatedUserInfo := dto.AuthenticatedUserInfoDto{
+		Token: token.TokenUuid,
+		Role: profileInfo.Role.RoleName,
+		Id: profileInfo.ID,
+	}
 	a.AuthenticationUsecase.SaveAuthToken(ctx, 12, token)
 
-	ctx.JSON(200, gin.H{"token_id" : token.TokenUuid})
+	ctx.JSON(200, authenticatedUserInfo)
 }
 
 func (a *authenticateHandler) ValidateToken(ctx *gin.Context) {
@@ -84,7 +88,7 @@ func (a *authenticateHandler) ValidateToken(ctx *gin.Context) {
 		return
 	}
 
-	token, err := a.JwtUsecase.ValidateToken(ctx, string(at));
+	token, err := a.JwtUsecase.ValidateToken(ctx, string(at))
 	if err != nil || token == ""{
 		ctx.JSON(401, gin.H{"message" : "Invalid token"})
 		ctx.Abort()
@@ -111,6 +115,11 @@ func (a *authenticateHandler) Logout(ctx *gin.Context) {
 		ctx.Abort()
 		return
 	}
+
+	ctx.JSON(200, gin.H{"message" : "Sucessful logout"})
+}
+
+func (a *authenticateHandler) Login1(ctx *gin.Context) {
 
 	ctx.JSON(200, gin.H{"message" : "Sucessful logout"})
 }

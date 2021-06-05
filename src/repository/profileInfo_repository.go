@@ -24,14 +24,14 @@ func NewProfileInfoRepository(conn *gorm.DB) ProfileInfoRepository {
 
 func (p *profileInfoRepository) GetProfileInfoByEmail(context context.Context, email string) (domain.ProfileInfo, error) {
 	profileInfo := domain.ProfileInfo{}
-	err := p.Conn.Where("email = ?", email).Take(&profileInfo).Error
+	err := p.Conn.Joins("Role").Take(&profileInfo,"email = ?", email).Error
 
 	return profileInfo, err
 }
 
 func (p *profileInfoRepository) GetProfileInfoByUsername(context context.Context, username string) (domain.ProfileInfo, error) {
 	profileInfo := domain.ProfileInfo{}
-	err := p.Conn.Where("username = ?", username).Take(&profileInfo).Error
+	err := p.Conn.Joins("Role").Take(&profileInfo,"username = ?", username).Error
 
 	return profileInfo, err
 }

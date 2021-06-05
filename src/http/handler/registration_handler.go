@@ -32,11 +32,11 @@ func (r *registrationHandler) Register(ctx *gin.Context) {
 	}
 
 	if r.RegistrationUsecase.IsAlreadyRegistered(ctx, user.Username, user.Email) {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message" : "User already exists"})
+		ctx.JSON(402, gin.H{"message" : "User already exists"})
 		return
 	}
 	if err := r.RegistrationUsecase.Register(ctx, user); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message" : err.Error()})
+		ctx.JSON(402, gin.H{"message" : err.Error()})
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message" : "Please check your email to confirm registration"})
@@ -51,7 +51,7 @@ func (r *registrationHandler) ConfirmAccount(ctx *gin.Context) {
 	}
 
 	if err := r.RegistrationUsecase.ConfirmAccount(ctx, dto.Code, dto.Username); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message" : err.Error()})
+		ctx.JSON(400, gin.H{"message" : err.Error()})
 		return
 	}
 
