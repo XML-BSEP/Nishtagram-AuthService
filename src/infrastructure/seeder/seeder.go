@@ -36,6 +36,7 @@ func seedProfiles(gorm *gorm.DB) {
 	gorm.Where("role_name=?", "agent").First(&roleAgent)
 
 	profile1 := domain.ProfileInfo{
+		ID: "e2b5f92e-c31b-11eb-8529-0242ac130003",
 		Email: "user1@gmail.com",
 		Username: "user1",
 		Password: "$2y$10$jwbLvrZYHgZN3HFJIV1vFu.lxi6SiiKFzx2B3RItMxruVD8wNPqdS", //user1
@@ -43,6 +44,7 @@ func seedProfiles(gorm *gorm.DB) {
 	}
 
 	profile2 := domain.ProfileInfo{
+		ID : "424935b1-766c-4f99-b306-9263731518bc",
 		Email: "user2@gmail.com",
 		Username: "user2",
 		Password: "$2y$10$D0LiWoNj3Ej7bnhq4qwX9OfQwI/zW8dJ86M0vMO0uWXw2zpmIs/r.", //user2
@@ -50,6 +52,7 @@ func seedProfiles(gorm *gorm.DB) {
 	}
 
 	profile3 := domain.ProfileInfo{
+		ID : "a2c2f993-dc32-4a82-82ed-a5f6866f7d03",
 		Email: "user3@gmail.com",
 		Username: "user3",
 		Password: "$2y$10$OYT/DOvOVd4ofL2uWvPlbuTGU65SdyhW4vei9dqm5NxIEvrQHCf4C", //user3
@@ -58,9 +61,10 @@ func seedProfiles(gorm *gorm.DB) {
 
 	profile4 := domain.ProfileInfo{
 		Email: "admin1@gmail.com",
-		Username: "admin1",
+		ID : "43420055-3174-4c2a-9823-a8f060d644c3",
+		Username: "user4",
 		Password: "$2y$10$6KqgPNO9RrBRKCx8ZKyzKu/oorCnraEEovjMIa9FHlxRhb5tNhQOe", //admin1
-		Role: roleAdmin,
+		Role: roleUser,
 	}
 
 	gorm.Create(&profile1)

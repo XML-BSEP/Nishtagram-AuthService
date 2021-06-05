@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
+	"fmt"
 	"github.com/google/uuid"
 	"time"
 )
@@ -34,6 +35,8 @@ func (s *registrationUsecase) Register(context context.Context, user domain.User
 
 	confirmationCode := helper.RandomStringGenerator(8)
 	hashedConfirmationCode, err := Hash(confirmationCode)
+	fmt.Print("Generisan kod: " + confirmationCode)
+	fmt.Print("Hashovan kod: " + string(hashedConfirmationCode))
 	if err != nil {
 		return err
 	}
@@ -69,6 +72,7 @@ func (s *registrationUsecase) ConfirmAccount(context context.Context, code strin
 		return err
 	}
 
+	fmt.Println("Poslat kod: " + code)
 	user, err := deserialize(bytes)
 	if err != nil {
 		return err
