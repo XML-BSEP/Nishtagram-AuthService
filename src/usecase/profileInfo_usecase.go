@@ -1,8 +1,8 @@
 package usecase
 
 import (
-	"auth-service/src/domain"
-	"auth-service/src/repository"
+	"auth-service/domain"
+	"auth-service/repository"
 	"context"
 )
 

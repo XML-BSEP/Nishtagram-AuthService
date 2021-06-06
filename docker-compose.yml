@@ -1,0 +1,103 @@
+version: '3.7'
+
+volumes:
+  follow-data: {}
+  auth-redis-data: {}
+  auth-redis.conf: {}
+  auth-data: {}
+
+networks:
+#   demo:
+#     name: demo
+#     driver: bridge
+  node_net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+
+services:
+  authpostgres:
+    image: postgres:latest
+    container_name: authpostgres
+    ports: 
+      - 5432:5432
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "root"
+      POSTGRES_DB: "authentication"
+    networks:
+        # - demo
+        node_net:
+            ipv4_address: 172.28.1.4
+    volumes:
+      - auth-data:/var/lib/auth
+    restart: on-failure  
+
+  authredis:
+    image: "redis:alpine"
+    command: redis-server
+    container_name: authredis
+    ports:
+      - "6380:6379"
+    volumes:
+      - auth-redis-data:/var/lib/redis
+      - auth-redis.conf:/usr/local/etc/redis/redis.conf
+    environment:
+      - REDIS_REPLICATION_MODE=master
+    networks:
+        # - demo
+      node_net:
+        ipv4_address: 172.28.1.5
+    restart: on-failure  
+
+
+  mongofollow:
+    image: 'mongo:4.2.6-bionic'
+    container_name: mongofollow
+    ports:
+      - '27017:27017'
+    networks:
+        # - demo
+
+        node_net:
+            ipv4_address: 172.28.1.6
+    volumes:
+      - follow-data:/data/db
+    restart: on-failure 
+
+  authms:
+    image: authimg
+    container_name: authms
+    depends_on:
+      - authredis
+      - authpostgres
+    environment:
+      - PORT=5001
+    networks:
+        # - demo
+
+        node_net:
+            ipv4_address: 172.28.1.7
+
+    ports:
+      - 5001:8091
+    volumes:
+      - auth-redis-data:/data/db:rw
+      - auth-data:/data/db:rw
+
+  followms:
+    image: followimg
+    container_name: followms
+    depends_on:
+      - mongofollow
+    environment:
+      - PORT=5000
+    networks:
+        # - demo
+        node_net:
+            ipv4_address: 172.28.1.8
+    ports:
+      - 5000:8089
+    volumes:
+      - follow-data:/data/db:rw

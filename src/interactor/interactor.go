@@ -1,10 +1,10 @@
 package interactor
 
 import (
-	"auth-service/src/http/handler"
-	"auth-service/src/infrastructure/redisdb"
-	"auth-service/src/repository"
-	"auth-service/src/usecase"
+	"auth-service/http/handler"
+	"auth-service/infrastructure/redisdb"
+	"auth-service/repository"
+	"auth-service/usecase"
 	"gorm.io/gorm"
 )
 

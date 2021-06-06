@@ -1,8 +1,8 @@
 package usecase
 
 import (
-	"auth-service/src/domain"
-	"auth-service/src/helper"
+	"auth-service/domain"
+	"auth-service/helper"
 	"bytes"
 	"context"
 	"encoding/gob"
@@ -104,6 +104,7 @@ func (s *registrationUsecase) IsAlreadyRegistered(context context.Context, usern
 }
 func userToProfleInfo(user *domain.User) *domain.ProfileInfo{
 	return &domain.ProfileInfo{
+		ID : user.ID,
 		Username: user.Username,
 		Email: user.Email,
 		Password: user.Password,

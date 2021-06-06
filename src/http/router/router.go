@@ -1,7 +1,7 @@
 package router
 
 import (
-	"auth-service/src/interactor"
+	"auth-service/interactor"
 	"github.com/gin-gonic/gin"
 )
 

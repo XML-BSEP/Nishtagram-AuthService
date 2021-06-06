@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"auth-service/src/infrastructure/dto"
-	"auth-service/src/usecase"
+	"auth-service/infrastructure/dto"
+	"auth-service/usecase"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"

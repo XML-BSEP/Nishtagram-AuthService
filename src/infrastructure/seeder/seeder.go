@@ -1,7 +1,7 @@
 package seeder
 
 import (
-	"auth-service/src/domain"
+	"auth-service/domain"
 	"gorm.io/gorm"
 )
 

@@ -1,7 +1,7 @@
 package usecase
 
 import (
-	"auth-service/src/domain"
+	"auth-service/domain"
 	"context"
 	"time"
 )
