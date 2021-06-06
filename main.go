@@ -6,7 +6,10 @@ import (
 	"auth-service/src/infrastructure/postgresqldb"
 	"auth-service/src/infrastructure/seeder"
 	interactor2 "auth-service/src/interactor"
+	"context"
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"time"
 )
 
 func main() {
@@ -22,6 +25,11 @@ func main() {
 	router := router2.NewRouter(appHandler)
 	router.Use(gin.Logger())
 	router.Use(middleware.CORSMiddleware())
+
+	redis := interactor.NewRedisUsecase()
+	redis.AddKeyValueSet(context.Background(), "aaa", "111", time.Duration(1000000000000000000))
+	value, _ := redis.GetValueByKey(context.Background(), "aaa")
+	fmt.Println(value)
 
 
 
