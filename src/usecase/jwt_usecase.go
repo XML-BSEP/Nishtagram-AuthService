@@ -39,6 +39,7 @@ func (j *jwtUsecase) CreateToken(context context.Context, role string, userId st
 	atClaims["refresh_uuid"] = td.RefreshUuid
 	atClaims["exp"] = td.AtExpires
 	atClaims["role"] = role
+	atClaims["user_id"] = userId
 
 
 	at := jwt.NewWithClaims(jwt.SigningMethodHS256, atClaims)
