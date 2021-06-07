@@ -13,7 +13,7 @@ func NewDBConnection() *gorm.DB {
 }
 
 func init_viper() {
-	viper.SetConfigFile(`src/configurations/postgresql.json`)
+	viper.SetConfigFile(`configurations/postgresql.json`)
 	err := viper.ReadInConfig()
 	if err != nil {
 		panic(err)
@@ -26,7 +26,12 @@ func init_viper() {
 
 func getConnection() *gorm.DB {
 	init_viper()
-	host := viper.GetString(`database.host`)
+	var host string
+	if viper.GetBool(`docker`){
+		host = viper.GetString(`database.host_docker`)
+	}else{
+		host = viper.GetString(`database.host_localhost`)
+	}
 	port := viper.GetString(`database.port`)
 	user := viper.GetString(`database.user`)
 	password := viper.GetString(`database.pass`)

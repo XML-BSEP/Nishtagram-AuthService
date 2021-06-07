@@ -1,9 +1,9 @@
 package usecase
 
 import (
-	"auth-service/src/domain"
-	"auth-service/src/gateway"
-	"auth-service/src/helper"
+	"auth-service/domain"
+	"auth-service/gateway"
+	"auth-service/helper"
 	"bytes"
 	"context"
 	"encoding/gob"

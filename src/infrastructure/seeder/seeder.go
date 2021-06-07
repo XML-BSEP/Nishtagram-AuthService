@@ -1,7 +1,7 @@
 package seeder
 
 import (
-	"auth-service/src/domain"
+	"auth-service/domain"
 	"gorm.io/gorm"
 )
 
@@ -58,11 +58,31 @@ func seedProfiles(gorm *gorm.DB) {
 		Password: "$2y$10$OYT/DOvOVd4ofL2uWvPlbuTGU65SdyhW4vei9dqm5NxIEvrQHCf4C", //user3
 		Role: roleUser,
 	}
-
 	profile4 := domain.ProfileInfo{
-		Email: "admin1@gmail.com",
 		ID : "43420055-3174-4c2a-9823-a8f060d644c3",
+		Email: "user4@gmail.com",
 		Username: "user4",
+		Password: "$2y$10$OYT/DOvOVd4ofL2uWvPlbuTGU65SdyhW4vei9dqm5NxIEvrQHCf4C", //user3
+		Role: roleUser,
+	}
+	profile5 := domain.ProfileInfo{
+		ID : "ead67925-e71c-43f4-8739-c3b823fe21bb",
+		Email: "user5@gmail.com",
+		Username: "user5",
+		Password: "$2y$10$OYT/DOvOVd4ofL2uWvPlbuTGU65SdyhW4vei9dqm5NxIEvrQHCf4C", //user3
+		Role: roleUser,
+	}
+	profile6 := domain.ProfileInfo{
+		ID : "23ddb1dd-4303-428b-b506-ff313071d5d7",
+		Email: "user6@gmail.com",
+		Username: "user6",
+		Password: "$2y$10$OYT/DOvOVd4ofL2uWvPlbuTGU65SdyhW4vei9dqm5NxIEvrQHCf4C", //user3
+		Role: roleUser,
+	}
+	admin := domain.ProfileInfo{
+		Email: "admin1@gmail.com",
+		ID : "bdb7d7c5-2c9a-4b4c-ab64-4e4828d93926",
+		Username: "admin1",
 		Password: "$2y$10$6KqgPNO9RrBRKCx8ZKyzKu/oorCnraEEovjMIa9FHlxRhb5tNhQOe", //admin1
 		Role: roleUser,
 	}
@@ -71,5 +91,8 @@ func seedProfiles(gorm *gorm.DB) {
 	gorm.Create(&profile2)
 	gorm.Create(&profile3)
 	gorm.Create(&profile4)
+	gorm.Create(&profile5)
+	gorm.Create(&profile6)
+	gorm.Create(&admin)
 
 }

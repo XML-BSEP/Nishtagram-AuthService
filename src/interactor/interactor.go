@@ -1,11 +1,11 @@
 package interactor
 
 import (
-	"auth-service/src/gateway"
-	"auth-service/src/http/handler"
-	"auth-service/src/infrastructure/redisdb"
-	"auth-service/src/repository"
-	"auth-service/src/usecase"
+	"auth-service/gateway"
+	"auth-service/http/handler"
+	"auth-service/infrastructure/redisdb"
+	"auth-service/repository"
+	"auth-service/usecase"
 	resty2 "github.com/go-resty/resty/v2"
 	"gorm.io/gorm"
 )

@@ -1,11 +1,11 @@
 package main
 
 import (
-	"auth-service/src/http/middleware"
-	router2 "auth-service/src/http/router"
-	"auth-service/src/infrastructure/postgresqldb"
-	"auth-service/src/infrastructure/seeder"
-	interactor2 "auth-service/src/interactor"
+	"auth-service/http/middleware"
+	router2 "auth-service/http/router"
+	"auth-service/infrastructure/postgresqldb"
+	"auth-service/infrastructure/seeder"
+	interactor2 "auth-service/interactor"
 	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -35,5 +35,5 @@ func main() {
 
 
 
-	router.RunTLS("localhost:8091", "certificate/cert.pem", "certificate/key.pem")
+	router.RunTLS(":8091", "certificate/cert.pem", "certificate/key.pem")
 }
