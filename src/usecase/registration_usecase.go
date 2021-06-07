@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"auth-service/src/domain"
+	"auth-service/src/gateway"
 	"auth-service/src/helper"
 	"bytes"
 	"context"
@@ -17,6 +18,7 @@ const (
 type registrationUsecase struct {
 	RedisUsecase RedisUsecase
 	ProfileInfoUsecase ProfileInfoUsecase
+	UserGateway gateway.UserGateway
 }
 
 
@@ -26,8 +28,12 @@ type RegistrationUsecase interface {
 	IsAlreadyRegistered(context context.Context, username, email string) bool
 }
 
-func NewRegistrationUsecase(redisUsecase RedisUsecase, profileInfoUsecase ProfileInfoUsecase) RegistrationUsecase{
-	return &registrationUsecase{RedisUsecase: redisUsecase, ProfileInfoUsecase: profileInfoUsecase}
+func NewRegistrationUsecase(redisUsecase RedisUsecase, profileInfoUsecase ProfileInfoUsecase, gateway gateway.UserGateway) RegistrationUsecase{
+	return &registrationUsecase{
+		RedisUsecase: redisUsecase,
+		ProfileInfoUsecase: profileInfoUsecase,
+		UserGateway: gateway,
+		}
 }
 
 func (s *registrationUsecase) Register(context context.Context, user domain.User) error{
@@ -72,12 +78,12 @@ func (s *registrationUsecase) ConfirmAccount(context context.Context, code strin
 		return err
 	}
 
-	fmt.Println("Poslat kod: " + code)
+
 	user, err := deserialize(bytes)
 	if err != nil {
 		return err
 	}
-
+	fmt.Println("User id : " + user.ID)
 	if err := helper.Verify(code, user.ConfirmationCode); err != nil {
 		return err
 	}
@@ -87,6 +93,11 @@ func (s *registrationUsecase) ConfirmAccount(context context.Context, code strin
 	if err := s.ProfileInfoUsecase.Create(context, userToProfleInfo(user)); err != nil {
 		return err
 	}
+
+	if err := s.UserGateway.SaveRegisteredUser(context, user); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -104,6 +115,7 @@ func (s *registrationUsecase) IsAlreadyRegistered(context context.Context, usern
 }
 func userToProfleInfo(user *domain.User) *domain.ProfileInfo{
 	return &domain.ProfileInfo{
+		ID: user.ID,
 		Username: user.Username,
 		Email: user.Email,
 		Password: user.Password,

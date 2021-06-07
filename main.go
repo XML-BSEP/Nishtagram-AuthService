@@ -14,6 +14,8 @@ func main() {
 
 	postgreConn := postgresqldb.NewDBConnection()
 
+
+
 	seeder.SeedData(postgreConn)
 
 	interactor := interactor2.NewInteractor(postgreConn)

@@ -1,16 +1,19 @@
 package interactor
 
 import (
+	"auth-service/src/gateway"
 	"auth-service/src/http/handler"
 	"auth-service/src/infrastructure/redisdb"
 	"auth-service/src/repository"
 	"auth-service/src/usecase"
+	resty2 "github.com/go-resty/resty/v2"
 	"gorm.io/gorm"
 )
 
 type interactor struct {
 	Conn *gorm.DB
 }
+
 
 type Interactor interface {
 	NewProfileInfoRepository() repository.ProfileInfoRepository
@@ -26,6 +29,8 @@ type Interactor interface {
 	NewAppHandler() AppHandler
 	NewAuthenticationHandler() handler.AuthenticationHandler
 	NewRegistrationHandler() handler.RegistrationHandler
+
+	NewUserGateway() gateway.UserGateway
 
 }
 
@@ -79,9 +84,14 @@ func (i *interactor) NewProfileInfoUsecase() usecase.ProfileInfoUsecase {
 }
 
 func (i *interactor) NewRegistrationUsecase() usecase.RegistrationUsecase {
-	return usecase.NewRegistrationUsecase(i.NewRedisUsecase(), i.NewProfileInfoUsecase())
+	return usecase.NewRegistrationUsecase(i.NewRedisUsecase(), i.NewProfileInfoUsecase(), i.NewUserGateway())
 }
 
 func (i *interactor) NewRegistrationHandler() handler.RegistrationHandler {
 	return handler.NewRegistrationHandler(i.NewRegistrationUsecase())
+}
+
+func (i *interactor) NewUserGateway() gateway.UserGateway {
+	resty := resty2.New()
+	return gateway.NewUserGateway(resty)
 }
