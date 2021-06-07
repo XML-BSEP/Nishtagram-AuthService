@@ -53,7 +53,7 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 		return
 	}
 
-	token, err := a.JwtUsecase.CreateToken(ctx, 12)
+	token, err := a.JwtUsecase.CreateToken(ctx, profileInfo.Role.RoleName, profileInfo.ID)
 	if err != nil {
 		ctx.JSON(400, gin.H{"message" : "Can not create token"})
 		ctx.Abort()

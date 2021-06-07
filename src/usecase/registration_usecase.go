@@ -62,7 +62,8 @@ func (s *registrationUsecase) Register(context context.Context, user domain.User
 	if err != nil {
 		return err
 	}
-	if err := s.RedisUsecase.AddKeyValueSet(context, redisKey, serializedUser, time.Duration(expiration)); err != nil {
+	err = s.RedisUsecase.AddKeyValueSet(context, redisKey, serializedUser, time.Duration(expiration));
+	if err != nil {
 		return err
 	}
 

@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"github.com/go-redis/redis/v8"
 	"time"
 )
@@ -27,6 +28,10 @@ func (r *redisUsecase) GetValueByKey(context context.Context, key string) ([]byt
 }
 
 func (r *redisUsecase) AddKeyValueSet(context context.Context, key string, value interface{}, expiration time.Duration) error {
+	err := r.RedisClient.Ping(context).Err()
+	if err != nil {
+		fmt.Println(err)
+	}
 	return r.RedisClient.Set(context, key, value, expiration).Err()
 }
 

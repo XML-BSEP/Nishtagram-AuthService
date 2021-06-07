@@ -31,6 +31,7 @@ func (a *authenticationUsecase) SaveAuthToken(ctx context.Context, userId uint, 
 	now := time.Now()
 
 	key := authToken + td.TokenUuid
+
 	if err := a.RedisUsecase.AddKeyValueSet(ctx, key, td.AccessToken, at.Sub(now)); err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"auth-service/src/domain"
+	"auth-service/src/repository"
 	"context"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
@@ -12,17 +13,18 @@ import (
 
 type jwtUsecase struct {
 	RedisUsecase RedisUsecase
+	roleRepository repository.RoleRepository
 }
 
 type JwtUsecase interface {
-	CreateToken(context context.Context, userid uint64) (*domain.TokenDetails, error)
+	CreateToken(context context.Context, role string, userId string) (*domain.TokenDetails, error)
 	ValidateToken(context context.Context, tokenString string) (string,error)
 }
 func NewJwtUsecase(usecase RedisUsecase) JwtUsecase {
 	return &jwtUsecase{RedisUsecase: usecase}
 }
 
-func (j *jwtUsecase) CreateToken(context context.Context, userid uint64) (*domain.TokenDetails, error) {
+func (j *jwtUsecase) CreateToken(context context.Context, role string, userId string) (*domain.TokenDetails, error) {
 	td := &domain.TokenDetails{}
 	td.AtExpires = time.Now().Add(time.Minute * 15).Unix()
 	td.TokenUuid = uuid.NewV4().String()
@@ -36,6 +38,9 @@ func (j *jwtUsecase) CreateToken(context context.Context, userid uint64) (*domai
 	atClaims["access_uuid"] = td.TokenUuid
 	atClaims["refresh_uuid"] = td.RefreshUuid
 	atClaims["exp"] = td.AtExpires
+	atClaims["role"] = role
+	atClaims["user_id"] = userId
+
 
 	at := jwt.NewWithClaims(jwt.SigningMethodHS256, atClaims)
 	td.AccessToken, err = at.SignedString([]byte(os.Getenv("ACCESS_SECRET")))
@@ -46,7 +51,7 @@ func (j *jwtUsecase) CreateToken(context context.Context, userid uint64) (*domai
 
 	rtClaims := jwt.MapClaims{}
 	rtClaims["refresh_uuid"] = td.RefreshUuid
-	rtClaims["user_id"] = userid
+	rtClaims["user_id"] = userId
 	rtClaims["exp"] = td.RtExpires
 
 	rt := jwt.NewWithClaims(jwt.SigningMethodHS256, rtClaims)
