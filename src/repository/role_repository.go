@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"auth-service/src/domain"
+	"auth-service/domain"
 	"context"
 	"gorm.io/gorm"
 )

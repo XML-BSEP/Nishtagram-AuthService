@@ -6,7 +6,7 @@ import (
 )
 
 func init_viper() {
-	viper.SetConfigFile(`src/configurations/redis.json`)
+	viper.SetConfigFile(`configurations/redis.json`)
 	err := viper.ReadInConfig()
 	if err != nil {
 		panic(err)
@@ -15,7 +15,13 @@ func init_viper() {
 }
 func NewReddisConn() *redis.Client {
 	init_viper()
-	address := viper.GetString(`server.address`)
+	init_viper()
+	var address string
+	if viper.GetBool(`docker`){
+		address = viper.GetString(`server.address_docker`)
+	}else{
+		address = viper.GetString(`server.address_localhost`)
+	}
 	port := viper.GetString(`server.port`)
 
 	return redis.NewClient(&redis.Options{

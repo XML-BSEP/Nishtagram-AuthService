@@ -1,7 +1,9 @@
 {
+  "docker" : false,
   "database": {
-    "host": "localhost",
-    "port": "5433",
+    "host_localhost": "localhost",
+    "host_docker" : "authpostgres",
+    "port": "5432",
     "user": "postgres",
     "pass": "root",
     "dbname": "authentication"
