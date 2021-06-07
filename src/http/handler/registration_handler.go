@@ -11,6 +11,7 @@ import (
 
 type registrationHandler struct {
 	RegistrationUsecase usecase.RegistrationUsecase
+
 }
 
 type RegistrationHandler interface {
@@ -54,6 +55,9 @@ func (r *registrationHandler) ConfirmAccount(ctx *gin.Context) {
 		ctx.JSON(400, gin.H{"message" : err.Error()})
 		return
 	}
+
+
+
 
 	ctx.JSON(http.StatusOK, gin.H{"message" : "Registration successful"})
 
