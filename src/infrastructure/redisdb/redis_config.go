@@ -6,7 +6,7 @@ import (
 )
 
 func init_viper() {
-	viper.SetConfigFile(`configurations/redis.json`)
+	viper.SetConfigFile(`src/configurations/redis.json`)
 	err := viper.ReadInConfig()
 	if err != nil {
 		panic(err)
