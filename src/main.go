@@ -35,5 +35,5 @@ func main() {
 
 
 
-	router.RunTLS(":8091", "certificate/cert.pem", "certificate/key.pem")
+	router.RunTLS(":8091", "src/certificate/cert.pem", "src/certificate/key.pem")
 }
