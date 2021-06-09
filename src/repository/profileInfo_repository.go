@@ -2,6 +2,7 @@ package repository
 
 import (
 	"auth-service/domain"
+	"auth-service/infrastructure/tracer"
 	"context"
 	"gorm.io/gorm"
 )
@@ -30,8 +31,15 @@ func (p *profileInfoRepository) GetProfileInfoByEmail(context context.Context, e
 }
 
 func (p *profileInfoRepository) GetProfileInfoByUsername(context context.Context, username string) (domain.ProfileInfo, error) {
+	span := tracer.StartSpanFromContext(context, "GetProfileInfoByUsername")
+	defer span.Finish()
+
 	profileInfo := domain.ProfileInfo{}
 	err := p.Conn.Joins("Role").Take(&profileInfo,"username = ?", username).Error
+
+	if err != nil {
+		tracer.LogError(span, err)
+	}
 
 	return profileInfo, err
 }

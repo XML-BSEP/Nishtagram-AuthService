@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"auth-service/domain"
+	"auth-service/infrastructure/tracer"
 	"context"
 	"time"
 )
@@ -27,12 +28,16 @@ func NewAuthenticationUsecase(redisUsecase RedisUsecase) AuthenticationUsecase{
 
 
 func (a *authenticationUsecase) SaveAuthToken(ctx context.Context, userId uint, td *domain.TokenDetails) error {
+	span := tracer.StartSpanFromContext(ctx, "SaveAuthToken")
+	defer span.Finish()
+
 	at := time.Unix(td.AtExpires, 0)
 	now := time.Now()
 
 	key := authToken + td.TokenUuid
 
 	if err := a.RedisUsecase.AddKeyValueSet(ctx, key, td.AccessToken, at.Sub(now)); err != nil {
+		tracer.LogError(span, err)
 		return err
 	}
 

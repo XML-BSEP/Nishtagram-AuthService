@@ -2,16 +2,25 @@ package handler
 
 import (
 	"auth-service/infrastructure/dto"
+	"auth-service/infrastructure/tracer"
 	"auth-service/usecase"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/opentracing/opentracing-go"
+)
+
+const (
+	body_decoding_err = "Body decoding error"
+	invalid_credentials_err = "Wrong username or password"
+	token_err = "Can not create token"
 )
 
 type authenticateHandler struct {
 	AuthenticationUsecase usecase.AuthenticationUsecase
 	JwtUsecase usecase.JwtUsecase
 	ProfileInfoUsecase usecase.ProfileInfoUsecase
+	Tracer opentracing.Tracer
 }
 
 type AuthenticationHandler interface {
@@ -20,42 +29,47 @@ type AuthenticationHandler interface {
 	Logout(ctx *gin.Context)
 }
 
-func NewAuthenticationHandler(authUsecase usecase.AuthenticationUsecase, jwtUSecase usecase.JwtUsecase, profileInfoUsecase usecase.ProfileInfoUsecase) AuthenticationHandler {
-	return &authenticateHandler{authUsecase, jwtUSecase,  profileInfoUsecase}
+func NewAuthenticationHandler(authUsecase usecase.AuthenticationUsecase, jwtUSecase usecase.JwtUsecase, profileInfoUsecase usecase.ProfileInfoUsecase, tracer opentracing.Tracer) AuthenticationHandler {
+	return &authenticateHandler{authUsecase, jwtUSecase,  profileInfoUsecase, tracer}
 }
 
 func (a *authenticateHandler) Login(ctx *gin.Context) {
 
-
-	auth := ctx.GetHeader("Content-Type")
-	fmt.Println(auth)
+	span := tracer.StartSpanFromRequest("Login", a.Tracer, ctx.Request)
+	defer span.Finish()
+	logMetadata(span, ctx)
 	var authenticationDto dto.AuthenticationDto
 
 	decoder := json.NewDecoder(ctx.Request.Body)
 
 	if err := decoder.Decode(&authenticationDto); err != nil {
-		ctx.JSON(400, gin.H{"message" : "Token decoding error"})
+		tracer.LogError(span, fmt.Errorf("message=%s; err=%s\n",body_decoding_err, err))
+		ctx.JSON(400, gin.H{"message" : body_decoding_err})
 		ctx.Abort()
 		return
 	}
 
-	profileInfo, err := a.ProfileInfoUsecase.GetProfileInfoByUsername(ctx, authenticationDto.Username)
+	span.LogFields(tracer.LogString("handler", fmt.Sprintf("request_username= %s", authenticationDto.Username)))
 
+	ctx1 := tracer.ContextWithSpan(ctx, span)
+	profileInfo, err := a.ProfileInfoUsecase.GetProfileInfoByUsername(ctx1, authenticationDto.Username)
 	if err != nil {
-		ctx.JSON(400, gin.H{"message" : "Wrong username or password"})
+		tracer.LogError(span, fmt.Errorf("message=%s", invalid_credentials_err))
+		ctx.JSON(400, gin.H{"message" : invalid_credentials_err})
 		ctx.Abort()
 		return
 	}
 
-	if err := usecase.VerifyPassword(authenticationDto.Password, profileInfo.Password); err != nil {
-		ctx.JSON(400, gin.H{"message" : "Wrong username or password"})
+	span.LogFields(tracer.LogString("handler", fmt.Sprintf("username= %s; user_id= %s", profileInfo.Username, profileInfo.ID)))
+	if err := usecase.VerifyPassword(ctx1, authenticationDto.Password, profileInfo.Password); err != nil {
+		ctx.JSON(400, gin.H{"message" : invalid_credentials_err})
 		ctx.Abort()
 		return
 	}
 
-	token, err := a.JwtUsecase.CreateToken(ctx, profileInfo.Role.RoleName, profileInfo.ID)
+	token, err := a.JwtUsecase.CreateToken(ctx1, profileInfo.Role.RoleName, profileInfo.ID)
 	if err != nil {
-		ctx.JSON(400, gin.H{"message" : "Can not create token"})
+		ctx.JSON(400, gin.H{"message" : token_err})
 		ctx.Abort()
 		return
 	}
@@ -64,7 +78,7 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 		Role: profileInfo.Role.RoleName,
 		Id: profileInfo.ID,
 	}
-	a.AuthenticationUsecase.SaveAuthToken(ctx, 12, token)
+	a.AuthenticationUsecase.SaveAuthToken(ctx1, 12, token)
 
 	ctx.JSON(200, authenticatedUserInfo)
 }
@@ -123,3 +137,13 @@ func (a *authenticateHandler) Login1(ctx *gin.Context) {
 
 	ctx.JSON(200, gin.H{"message" : "Sucessful logout"})
 }
+
+func logMetadata(span opentracing.Span, ctx *gin.Context) {
+	span.LogFields(
+		tracer.LogString("handler: ", fmt.Sprintf("handling login at %s\n", ctx.Request.URL.Path)),
+		tracer.LogString("handler: ", fmt.Sprintf("client ip= %s\n", ctx.ClientIP())),
+		tracer.LogString("handler", fmt.Sprintf("method= %s\n", ctx.Request.Method)),
+		tracer.LogString("handler", fmt.Sprintf("header= %s\n", ctx.Request.Header)),
+	)
+}
+

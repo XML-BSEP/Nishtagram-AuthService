@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"auth-service/domain"
+	"auth-service/infrastructure/tracer"
 	"auth-service/repository"
 	"context"
 	"fmt"
@@ -25,6 +26,9 @@ func NewJwtUsecase(usecase RedisUsecase) JwtUsecase {
 }
 
 func (j *jwtUsecase) CreateToken(context context.Context, role string, userId string) (*domain.TokenDetails, error) {
+	span := tracer.StartSpanFromContext(context, "CreateToken")
+	defer span.Finish()
+
 	td := &domain.TokenDetails{}
 	td.AtExpires = time.Now().Add(time.Minute * 15).Unix()
 	td.TokenUuid = uuid.NewV4().String()
@@ -46,6 +50,7 @@ func (j *jwtUsecase) CreateToken(context context.Context, role string, userId st
 	td.AccessToken, err = at.SignedString([]byte(os.Getenv("ACCESS_SECRET")))
 
 	if err != nil {
+		tracer.LogError(span, err)
 		return nil, err
 	}
 
@@ -57,6 +62,7 @@ func (j *jwtUsecase) CreateToken(context context.Context, role string, userId st
 	rt := jwt.NewWithClaims(jwt.SigningMethodHS256, rtClaims)
 	td.RefreshToken, err = rt.SignedString([]byte(os.Getenv("REFRESH_SECRET")))
 	if err != nil {
+		tracer.LogError(span, err)
 		return nil, err
 	}
 	return td, nil
