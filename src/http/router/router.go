@@ -13,7 +13,8 @@ func NewRouter(handler interactor.AppHandler) *gin.Engine {
 	router.POST("/logout", handler.Logout)
 	router.POST("/register", handler.Register)
 	router.POST("/confirmAccount", handler.ConfirmAccount)
-
+	router.POST("/generateSecret", handler.GenerateSecret)
+	router.POST("/verifySecret", handler.Verify)
 	return router
 }
 

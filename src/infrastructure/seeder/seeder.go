@@ -8,9 +8,11 @@ import (
 func SeedData(gorm *gorm.DB) {
 	gorm.Migrator().DropTable(&domain.Role{})
 	gorm.Migrator().DropTable(&domain.ProfileInfo{})
+	gorm.Migrator().DropTable(&domain.TotpSecret{})
 
 	gorm.AutoMigrate(&domain.Role{})
 	gorm.AutoMigrate(&domain.ProfileInfo{})
+	gorm.AutoMigrate(&domain.TotpSecret{})
 
 	seedRoles(gorm)
 	seedProfiles(gorm)

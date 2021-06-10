@@ -21,10 +21,10 @@ type interactor struct {
 	Closer io.Closer
 }
 
-
 type Interactor interface {
 	NewProfileInfoRepository() repository.ProfileInfoRepository
 	NewRoleRepository() repository.RoleRepository
+	NewTotpRepository() repository.TotpRepository
 
 
 	NewRedisUsecase() usecase.RedisUsecase
@@ -32,10 +32,12 @@ type Interactor interface {
 	NewJwtUsecase() usecase.JwtUsecase
 	NewProfileInfoUsecase() usecase.ProfileInfoUsecase
 	NewRegistrationUsecase() usecase.RegistrationUsecase
+	NewTotpUsecase() usecase.TotpUsecase
 
 	NewAppHandler() AppHandler
 	NewAuthenticationHandler() handler.AuthenticationHandler
 	NewRegistrationHandler() handler.RegistrationHandler
+	NewTotpHandler() handler.TotpHandler
 
 	NewUserGateway() gateway.UserGateway
 
@@ -44,11 +46,13 @@ type Interactor interface {
 type appHandler struct {
 	handler.AuthenticationHandler
 	handler.RegistrationHandler
+	handler.TotpHandler
 }
 
 type AppHandler interface {
 	handler.AuthenticationHandler
 	handler.RegistrationHandler
+	handler.TotpHandler
 }
 
 func NewInteractor(conn *gorm.DB) Interactor {
@@ -65,6 +69,7 @@ func (i *interactor) NewAppHandler() AppHandler {
 	appHandler := &appHandler{}
 	appHandler.AuthenticationHandler = i.NewAuthenticationHandler()
 	appHandler.RegistrationHandler = i.NewRegistrationHandler()
+	appHandler.TotpHandler = i.NewTotpHandler()
 	return appHandler
 }
 func (i *interactor) NewProfileInfoRepository() repository.ProfileInfoRepository {
@@ -107,4 +112,16 @@ func (i *interactor) NewRegistrationHandler() handler.RegistrationHandler {
 func (i *interactor) NewUserGateway() gateway.UserGateway {
 	resty := resty2.New()
 	return gateway.NewUserGateway(resty)
+}
+
+func (i *interactor) NewTotpRepository() repository.TotpRepository {
+	return repository.NewTotpRepository(i.Conn)
+}
+
+func (i *interactor) NewTotpUsecase() usecase.TotpUsecase {
+	return usecase.NewTotpUsecase(i.NewTotpRepository(), i.NewRedisUsecase(), i.NewProfileInfoUsecase())
+}
+
+func (i *interactor) NewTotpHandler() handler.TotpHandler {
+	return handler.NewTotpHandler(i.NewTotpUsecase(), i.Tracer, i.NewProfileInfoUsecase())
 }

@@ -37,7 +37,7 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 
 	span := tracer.StartSpanFromRequest("Login", a.Tracer, ctx.Request)
 	defer span.Finish()
-	logMetadata(span, ctx)
+	a.logMetadata(span, ctx)
 	var authenticationDto dto.AuthenticationDto
 
 	decoder := json.NewDecoder(ctx.Request.Body)
@@ -138,7 +138,7 @@ func (a *authenticateHandler) Login1(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"message" : "Sucessful logout"})
 }
 
-func logMetadata(span opentracing.Span, ctx *gin.Context) {
+func (a *authenticateHandler) logMetadata(span opentracing.Span, ctx *gin.Context) {
 	span.LogFields(
 		tracer.LogString("handler: ", fmt.Sprintf("handling login at %s\n", ctx.Request.URL.Path)),
 		tracer.LogString("handler: ", fmt.Sprintf("client ip= %s\n", ctx.ClientIP())),

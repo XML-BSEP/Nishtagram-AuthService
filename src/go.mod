@@ -12,6 +12,7 @@ require (
 	github.com/myesui/uuid v1.0.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pkg/errors v0.8.1 // indirect
+	github.com/pquerna/otp v1.3.0 // indirect
 	github.com/rs/cors v1.7.0 // indirect
 	github.com/spf13/viper v1.7.1
 	github.com/twinj/uuid v1.0.0
