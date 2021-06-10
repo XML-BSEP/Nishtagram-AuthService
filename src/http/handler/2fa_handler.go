@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"auth-service/http/middleware"
 	"auth-service/infrastructure/dto"
 	"auth-service/infrastructure/tracer"
 	"auth-service/usecase"
@@ -23,9 +24,11 @@ type totpHandler struct {
 	Tracer opentracing.Tracer
 }
 
+
 type TotpHandler interface {
 	 GenerateSecret(ctx *gin.Context)
 	 Verify(ctx *gin.Context)
+	 IsEnabled(ctx *gin.Context)
 }
 
 func NewTotpHandler(totpUsecase usecase.TotpUsecase, tracer opentracing.Tracer, profileInfoUsecase usecase.ProfileInfoUsecase) TotpHandler {
@@ -112,6 +115,18 @@ func (t *totpHandler) Verify(ctx *gin.Context) {
 	}
 
 	ctx.JSON(200, gin.H{"message" : "Two factor authentication enabled"})
+}
+
+func (t *totpHandler) IsEnabled(ctx *gin.Context) {
+	span := tracer.StartSpanFromRequest("handler", t.Tracer, ctx.Request)
+	defer span.Finish()
+
+	ctx1 := tracer.ContextWithSpan(ctx, span)
+	fmt.Println(ctx.Request.Header.Get("Authorization"))
+	token_id := middleware.GetTokenId(ctx1, ctx.Request)
+
+	ctx.JSON(200, token_id)
+
 }
 
 

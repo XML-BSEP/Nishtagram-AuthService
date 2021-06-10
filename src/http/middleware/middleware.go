@@ -1,6 +1,12 @@
 package middleware
 
-import "github.com/gin-gonic/gin"
+import (
+	"auth-service/infrastructure/tracer"
+	"context"
+	"fmt"
+	"github.com/gin-gonic/gin"
+	"net/http"
+)
 
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -16,4 +22,17 @@ func CORSMiddleware() gin.HandlerFunc {
 		}
 		c.Next()
 	}
+}
+
+func GetTokenId(ctx context.Context, request *http.Request) *string {
+	span := tracer.StartSpanFromContext(ctx, "middleware/GetTokenId")
+	defer span.Finish()
+	authHeader := request.Header.Get("authorization")
+	if authHeader == "" {
+		tracer.LogError(span, fmt.Errorf("", "Cookie header does not exist"))
+		return nil
+	}
+
+	return &authHeader
+
 }
