@@ -24,8 +24,9 @@ type registrationUsecase struct {
 
 type RegistrationUsecase interface {
 	Register(context context.Context, user domain.User) error
-	ConfirmAccount(context context.Context, code string, username string) error
+	ConfirmAccount(context context.Context, code string, email string) error
 	IsAlreadyRegistered(context context.Context, username, email string) bool
+	ResendCode(ctx context.Context, email string) (error, string, string)
 }
 
 func NewRegistrationUsecase(redisUsecase RedisUsecase, profileInfoUsecase ProfileInfoUsecase, gateway gateway.UserGateway) RegistrationUsecase{
@@ -37,7 +38,7 @@ func NewRegistrationUsecase(redisUsecase RedisUsecase, profileInfoUsecase Profil
 }
 
 func (s *registrationUsecase) Register(context context.Context, user domain.User) error{
-	redisKey := redisKeyPattern + user.Username
+	redisKey := redisKeyPattern + user.Email
 
 	confirmationCode := helper.RandomStringGenerator(8)
 	hashedConfirmationCode, err := Hash(confirmationCode)
@@ -72,8 +73,8 @@ func (s *registrationUsecase) Register(context context.Context, user domain.User
 }
 
 
-func (s *registrationUsecase) ConfirmAccount(context context.Context, code string, username string) error {
-	key := redisKeyPattern + username
+func (s *registrationUsecase) ConfirmAccount(context context.Context, code string, email string) error {
+	key := redisKeyPattern + email
 	bytes, err := s.RedisUsecase.GetValueByKey(context, key)
 	if err != nil {
 		return err
@@ -103,7 +104,7 @@ func (s *registrationUsecase) ConfirmAccount(context context.Context, code strin
 }
 
 func (s *registrationUsecase) IsAlreadyRegistered(context context.Context, username, email string) bool {
-	redisKey := redisKeyPattern + username
+	redisKey := redisKeyPattern + email
 	if s.RedisUsecase.ExistsByKey(context, redisKey) {
 		return true
 	}
@@ -125,6 +126,43 @@ func userToProfleInfo(user *domain.User) *domain.ProfileInfo{
 
 }
 
+func (s *registrationUsecase) ResendCode(ctx context.Context ,email string) (error, string, string) {
+	rediskey := redisKeyPattern + email
+
+	if !s.RedisUsecase.ExistsByKey(ctx,rediskey) {
+		return fmt.Errorf("invalid email"), "", ""
+	}
+	bytes, err := s.RedisUsecase.GetValueByKey(ctx, rediskey)
+	if err != nil {
+		return err, "", ""
+	}
+
+
+	user, err := deserialize(bytes)
+	if err != nil {
+		return err, "", ""
+	}
+
+	code := helper.RandomStringGenerator(8)
+
+	expiration  := 1000000000 * 3600 * 2 //2h
+	hash, _ := helper.Hash(code)
+
+	user.ConfirmationCode = string(hash)
+
+	redisKey := redisKeyPattern + email
+
+	serializedUser, err := serialize(*user)
+	if err != nil {
+		return err, "" ,""
+	}
+	err = s.RedisUsecase.AddKeyValueSet(ctx, redisKey, serializedUser, time.Duration(expiration))
+	if err != nil {
+		return err, "", ""
+	}
+
+	return nil, user.Email, code
+}
 
 func serialize(value domain.User) ([]byte, error){
 	b := bytes.Buffer{}

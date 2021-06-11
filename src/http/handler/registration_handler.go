@@ -20,6 +20,7 @@ type registrationHandler struct {
 type RegistrationHandler interface {
 	Register(ctx *gin.Context)
 	ConfirmAccount(ctx *gin.Context)
+	ResendCode(ctx *gin.Context)
 }
 
 func NewRegistrationHandler(registrationUsecase usecase.RegistrationUsecase) RegistrationHandler {
@@ -52,8 +53,8 @@ func (r *registrationHandler) Register(ctx *gin.Context) {
 	user.Image = strings.TrimSpace(policy.Sanitize(user.Image))
 	user.ConfirmationCode = strings.TrimSpace(policy.Sanitize(user.ConfirmationCode))
 
-	if user.ID == "" || user.Name == "" || user.Surname == "" || user.Email == "" || user.Address == "" || user.Phone == "" || user.Birthday  == "" ||
-		user.Gender == "" || user.Web == "" || user.Bio  == "" || user.Username == "" || user.ConfirmationCode == "" || user.Password == ""{
+	if user.Name == "" || user.Surname == "" || user.Email == "" || user.Address == "" || user.Phone == "" || user.Birthday  == "" ||
+		user.Gender == "" || user.Web == "" || user.Bio  == "" || user.Username == "" || user.Password == ""{
 		ctx.JSON(400, gin.H{"message" : "Field are empty or xss attack happened"})
 		return
 	}
@@ -102,15 +103,16 @@ func (r *registrationHandler) ConfirmAccount(ctx *gin.Context) {
 
 
 	policy := bluemonday.UGCPolicy()
-	dto.Username = strings.TrimSpace(policy.Sanitize(dto.Username))
+	dto.Email = strings.TrimSpace(policy.Sanitize(dto.Email))
+
 	dto.Code = strings.TrimSpace(policy.Sanitize(dto.Code))
 
-	if dto.Username == "" || dto.Code == "" {
+	if dto.Code == "" || dto.Email == ""{
 		ctx.JSON(400, gin.H{"message" : "Field are empty or xss attack happened"})
 		return
 	}
 
-	if err := r.RegistrationUsecase.ConfirmAccount(ctx, dto.Code, dto.Username); err != nil {
+	if err := r.RegistrationUsecase.ConfirmAccount(ctx, dto.Code, dto.Email); err != nil {
 		ctx.JSON(400, gin.H{"message" : err.Error()})
 		return
 	}
@@ -119,9 +121,43 @@ func (r *registrationHandler) ConfirmAccount(ctx *gin.Context) {
 
 
 	ctx.JSON(http.StatusOK, gin.H{"message" : "Registration successful"})
-
+	return
 }
 
+func (r *registrationHandler) ResendCode(ctx *gin.Context) {
+	decoder := json.NewDecoder(ctx.Request.Body)
+
+	type Email struct {
+		Email	string	`json:"email"`
+	}
+
+	var req Email
+	err := decoder.Decode(&req)
+
+
+	policy := bluemonday.UGCPolicy()
+	email := strings.TrimSpace(policy.Sanitize(req.Email))
+
+	if err != nil {
+		ctx.JSON(400, gin.H{"message" : "Field are empty or xss attack happened"})
+		return
+	}
+
+	err, email, code := r.RegistrationUsecase.ResendCode(ctx, email)
+
+	if err != nil {
+		ctx.JSON(400, gin.H{"message" : "Invalid email"})
+		return
+	}
+
+
+	usecase.SendMail(email, email, code)
+
+
+	ctx.JSON(200, gin.H{"message" : "Resend request successful, please check your email"})
+	return
+
+}
 
 
 

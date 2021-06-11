@@ -18,7 +18,7 @@ const (
 	SURNAME = "^[A-Z]{1}[a-z]+$"
 	USERNAME = "^[a-z]*[0-9]+$"
 	EMAIL = "([a-zA-Z0-9]+)@([a-zA-Z0-9\\.]+)\\.([a-zA-Z0-9]+)"
-	PHONE = "^[0-9]{3,6}(\\/).[0-9]+$"
+	//PHONE = "^[0-9]{3,6}(\\/).[0-9]+$"
 
 )
 
@@ -27,7 +27,7 @@ const (
 	SURNAME_ERR_MSG = "{0} must be in valid format"
 	EMAIL_ERR_MSG = "{0} must be in valid format"
 	USERNAME_ERR_MSG = "{0} must be in valid format"
-	PHONE_ERR_MSG = "{0} must be in valid format"
+	//PHONE_ERR_MSG = "{0} must be in valid format"
 
 )
 
@@ -37,7 +37,7 @@ func NewCustomValidator() *customValidator {
 	err = registerSurnameValidation(cv)
 	err = registerEmailValidation(cv)
 	err = registerUsernameValidation(cv)
-	err = registerPhoneValidation(cv)
+	//err = registerPhoneValidation(cv)
 	if err != nil {
 		return &customValidator{}
 	}
@@ -54,7 +54,7 @@ func (cv *customValidator) RegisterEnTranslation() (ut.Translator, error) {
 	registerEnSurnameTranslation(trans, cv)
 	registerEnEmailTranslation(trans, cv)
 	registerEnUsernameTranslation(trans, cv)
-	registerEnPhoneTranslation(trans, cv)
+	//registerEnPhoneTranslation(trans, cv)
 
 	return trans, enTranslations.RegisterDefaultTranslations(cv.Validator, trans)
 }
@@ -145,20 +145,20 @@ func registerEnUsernameTranslation(tr ut.Translator, cv *customValidator) {
 		return t
 	})
 }
+//
+//func registerPhoneValidation(cv *customValidator) error {
+//	return cv.Validator.RegisterValidation("phone", func(f1 validator.FieldLevel) bool {
+//		mathced, _ := regexp.Match(PHONE, []byte(f1.Field().String()))
+//		return mathced
+//	})
+//}
 
-func registerPhoneValidation(cv *customValidator) error {
-	return cv.Validator.RegisterValidation("phone", func(f1 validator.FieldLevel) bool {
-		mathced, _ := regexp.Match(PHONE, []byte(f1.Field().String()))
-		return mathced
-	})
-}
-
-func registerEnPhoneTranslation(tr ut.Translator, cv *customValidator) {
-	_ = cv.Validator.RegisterTranslation("phone", tr, func(ut ut.Translator) error {
-		return ut.Add("phone", PHONE_ERR_MSG, true)
-	}, func(ut ut.Translator, fe validator.FieldError) string {
-		t, _ := ut.T("phone", fe.Field())
-		return t
-	})
-
-}
+//func registerEnPhoneTranslation(tr ut.Translator, cv *customValidator) {
+//	_ = cv.Validator.RegisterTranslation("phone", tr, func(ut ut.Translator) error {
+//		return ut.Add("phone", PHONE_ERR_MSG, true)
+//	}, func(ut ut.Translator, fe validator.FieldError) string {
+//		t, _ := ut.T("phone", fe.Field())
+//		return t
+//	})
+//
+//}
