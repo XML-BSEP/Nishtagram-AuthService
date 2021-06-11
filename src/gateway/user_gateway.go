@@ -26,6 +26,7 @@ func (u *userGateway) SaveRegisteredUser(context context.Context, user *domain.U
 		return err
 	}
 	response, err := u.RestyClient.R().SetBody(json).Post("https://localhost:8082/saveNewUser")
+
 	if response.StatusCode() != 200 {
 		return errors.New("User failed")
 	}

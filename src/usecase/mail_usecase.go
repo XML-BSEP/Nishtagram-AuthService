@@ -25,7 +25,7 @@ func SendMail(subjectMail string, subjectName string, verCode string) error {
 
 	emailAuth := smtp.PlainAuth("", emailFrom, emailPassword, emailHost)
 
-	t, _  := template.ParseFiles("src/assets/mail_template/template.html")
+	t, _  := template.ParseFiles("assets/mail_template/template.html")
 	var body bytes.Buffer
 	headers := "MIME-version: 1.0;\nContent-Type: text/html;"
 	body.Write([]byte(fmt.Sprintf("Subject: Email verification by Duke Strategic Techologies\n%s\n\n", headers)))
