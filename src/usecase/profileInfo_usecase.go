@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"auth-service/domain"
+	"auth-service/infrastructure/tracer"
 	"auth-service/repository"
 	"context"
 )
@@ -21,7 +22,11 @@ func NewProfileInfoUsecase(p repository.ProfileInfoRepository) ProfileInfoUsecas
 }
 
 func (p *profileInfoUsecase) GetProfileInfoByUsername(context context.Context, username string) (domain.ProfileInfo, error) {
-	return p.ProfileInfoRepository.GetProfileInfoByUsername(context, username)
+	span := tracer.StartSpanFromContext(context, "usecase/GetProfileInfoByUsername")
+	defer span.Finish()
+
+	ctx1 := tracer.ContextWithSpan(context, span)
+	return p.ProfileInfoRepository.GetProfileInfoByUsername(ctx1, username)
 }
 
 func (p *profileInfoUsecase) Create(context context.Context, profileInfo *domain.ProfileInfo) error {
