@@ -18,6 +18,8 @@ func NewRouter(handler interactor.AppHandler) *gin.Engine {
 	router.GET("/isTotpEnabled", handler.IsEnabled)
 	router.POST("/disableTotp", handler.Disable)
 	router.POST("/resendRegistrationCode", handler.ResendCode)
+	router.POST("/resetPasswordMail", handler.SendResetMail)
+	router.POST("/resetPassword", handler.ResetPassword)
 
 
 	return router
