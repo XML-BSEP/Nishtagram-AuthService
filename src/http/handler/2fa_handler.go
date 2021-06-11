@@ -16,6 +16,10 @@ import (
 const (
 	totp_error = "Error generating totp secret"
 	totp_validation_error = "Your code is not correct"
+	totp_is_enabled_wrong_id_error = "User does not exists"
+	totp_is_enabled = "Two factor authentication is already enabled"
+	totp_disable_error = "Two factor authentication disabling error"
+	totp_disable = "Two factor authentication successfully disabled"
 )
 
 type totpHandler struct {
@@ -29,6 +33,7 @@ type TotpHandler interface {
 	 GenerateSecret(ctx *gin.Context)
 	 Verify(ctx *gin.Context)
 	 IsEnabled(ctx *gin.Context)
+	 Disable(ctx *gin.Context)
 }
 
 func NewTotpHandler(totpUsecase usecase.TotpUsecase, tracer opentracing.Tracer, profileInfoUsecase usecase.ProfileInfoUsecase) TotpHandler {
@@ -102,7 +107,7 @@ func (t *totpHandler) Verify(ctx *gin.Context) {
 
 	ctx1 := tracer.ContextWithSpan(ctx, span)
 
-	if !t.TotpUsecase.Validate(ctx1, totpSecretDto.Passcode, totpSecretDto.UserId) {
+	if !t.TotpUsecase.Verify(ctx1, totpSecretDto.Passcode, totpSecretDto.UserId) {
 		tracer.LogError(span, fmt.Errorf("message=%s",totp_validation_error))
 		ctx.JSON(400, gin.H{"message" : totp_validation_error})
 		return
@@ -122,13 +127,65 @@ func (t *totpHandler) IsEnabled(ctx *gin.Context) {
 	defer span.Finish()
 
 	ctx1 := tracer.ContextWithSpan(ctx, span)
-	fmt.Println(ctx.Request.Header.Get("Authorization"))
-	token_id := middleware.GetTokenId(ctx1, ctx.Request)
+	userId, err := middleware.ExtractUserId(ctx1, ctx.Request)
 
-	ctx.JSON(200, token_id)
+	if err != nil {
+		tracer.LogError(span, fmt.Errorf("messge= %s; err= %s", totp_is_enabled_wrong_id_error, err))
+		ctx.JSON(400, gin.H{"message" : totp_is_enabled_wrong_id_error})
+		return
+	}
+
+	if userId == "" {
+		tracer.LogError(span, fmt.Errorf("messge= %s; err= %s", totp_is_enabled_wrong_id_error, err))
+		ctx.JSON(400, gin.H{"message" : totp_is_enabled_wrong_id_error})
+		return
+	}
+
+	secret, _ := t.TotpUsecase.GetSecretByProfileInfoId(ctx1, userId)
+
+
+	if secret != nil {
+		tracer.LogError(span, fmt.Errorf("messge= %s; err= %s", totp_is_enabled, err))
+		ctx.JSON(400, gin.H{"message" : totp_is_enabled})
+		return
+	}
+
+	ctx.JSON(200, gin.H{"message" : "Totp is not enabled"})
 
 }
 
+func (t *totpHandler) Disable(ctx *gin.Context) {
+	span := tracer.StartSpanFromRequest("handler", t.Tracer, ctx.Request)
+	defer span.Finish()
+	t.logMetadata(span, ctx)
+
+	decoder := json.NewDecoder(ctx.Request.Body)
+
+	var totpSecretDto dto.TotpSecretDto
+	if err := decoder.Decode(&totpSecretDto); err != nil {
+		tracer.LogError(span, fmt.Errorf("message=%s; err=%s\n",body_decoding_err, err))
+		ctx.JSON(400, gin.H{"message" : body_decoding_err})
+		return
+	}
+
+	ctx1 := tracer.ContextWithSpan(ctx, span)
+
+	if !t.TotpUsecase.Validate(ctx1, totpSecretDto.UserId, totpSecretDto.Passcode) {
+		tracer.LogError(span, fmt.Errorf("message=%s",totp_validation_error))
+		ctx.JSON(400, gin.H{"message" : totp_validation_error})
+		return
+	}
+
+	if err := t.TotpUsecase.DeleteSecretByProfileId(ctx1, totpSecretDto.UserId); err != nil {
+		tracer.LogError(span, fmt.Errorf("message=%s; err=%s\n", totp_disable_error, err))
+		ctx.JSON(400, gin.H{"message" : totp_disable_error})
+		return
+	}
+
+
+	ctx.JSON(200, gin.H{"message" : totp_disable})
+
+}
 
 func (t *totpHandler) logMetadata(span opentracing.Span, ctx *gin.Context) {
 	span.LogFields(

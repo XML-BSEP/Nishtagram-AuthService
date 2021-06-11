@@ -22,14 +22,16 @@ type totpUsecase struct {
 	RedisUsecase RedisUsecase
 }
 
-
 type TotpUsecase interface {
 	GenereateTotpSecret(context context.Context, user string) (*otp.Key, error)
 	GetSecretString(context context.Context, key *otp.Key) string
 	GetSecretImage(context context.Context, key *otp.Key, width, height int) (*image.Image, error)
-	Validate(context context.Context, passcode, userId string) bool
+	Verify(context context.Context, passcode, userId string) bool
 	SaveSecretTemporarily(context context.Context, userId, secret string) error
 	SaveSecret(context context.Context, userId string) error
+	GetSecretByProfileInfoId(context context.Context, profileInfoId string) (*string, error)
+	DeleteSecretByProfileId(context context.Context, profileInfoId string) error
+	Validate(context context.Context, profileInfoId, passcode string) bool
 }
 
 func NewTotpUsecase(repository repository.TotpRepository, redisUsecase RedisUsecase, profileInfoUsecase ProfileInfoUsecase) TotpUsecase {
@@ -75,7 +77,7 @@ func (t *totpUsecase) GetSecretImage(context context.Context, key *otp.Key, widt
 	return &img, nil
 }
 
-func (t *totpUsecase) Validate(context context.Context, passcode, userId string) bool {
+func (t *totpUsecase) Verify(context context.Context, passcode, userId string) bool {
 	span := tracer.StartSpanFromContext(context, "usecase/Validate")
 	defer span.Finish()
 
@@ -99,7 +101,7 @@ func (t *totpUsecase) SaveSecretTemporarily(context context.Context, userId, sec
 
 	key := secret_prefix + userId
 	ctx1 := tracer.ContextWithSpan(context, span)
-	if err := t.RedisUsecase.AddKeyValueSet(ctx1, key, secret, time.Duration(2000000000000000000)); err != nil {
+	if err := t.RedisUsecase.AddKeyValueSet(ctx1, key, secret, time.Duration(300000000000)); err != nil {
 		tracer.LogError(span, err)
 		return err
 	}
@@ -135,4 +137,52 @@ func (t *totpUsecase) SaveSecret(context context.Context, userId string) error {
 
 
 	return nil
+}
+
+
+func (t *totpUsecase) GetSecretByProfileInfoId(context context.Context, profileInfoId string) (*string, error) {
+	span := tracer.StartSpanFromContext(context, "usecase/GetSecretByProfileInfoId")
+	defer span.Finish()
+
+	ctx1 := tracer.ContextWithSpan(context, span)
+
+	secret, err := t.TotpRepository.GetSecretByProfileInfoId(ctx1, profileInfoId)
+
+	if err != nil {
+		tracer.LogError(span, err)
+		return nil, err
+	}
+
+	return secret, nil
+}
+
+func (t *totpUsecase) DeleteSecretByProfileId(context context.Context, profileInfoId string) error {
+	span := tracer.StartSpanFromContext(context, "usecase/DeleteSecretByProfileId")
+	defer span.Finish()
+
+	ctx1 := tracer.ContextWithSpan(context, span)
+
+	if err := t.TotpRepository.DeleteByProfileInfoId(ctx1, profileInfoId); err != nil {
+		tracer.LogError(span, err)
+		return err
+	}
+
+	return nil
+}
+
+func (t *totpUsecase) Validate(context context.Context, profileInfoId, passcode string) bool {
+	span := tracer.StartSpanFromContext(context, "usecase/Validate")
+	defer span.Finish()
+
+	ctx1 := tracer.ContextWithSpan(context, span)
+	secret, err := t.TotpRepository.GetSecretByProfileInfoId(ctx1, profileInfoId)
+
+	if err != nil {
+		tracer.LogError(span, err)
+		return false
+	}
+
+	return totp.Validate(passcode, *secret)
+
+
 }

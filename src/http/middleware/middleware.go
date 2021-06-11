@@ -4,8 +4,11 @@ import (
 	"auth-service/infrastructure/tracer"
 	"context"
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"os"
+	"strings"
 )
 
 func CORSMiddleware() gin.HandlerFunc {
@@ -33,6 +36,54 @@ func GetTokenId(ctx context.Context, request *http.Request) *string {
 		return nil
 	}
 
+
+
 	return &authHeader
 
+}
+
+func ExtractToken(ctx context.Context, r *http.Request) string {
+	span := tracer.StartSpanFromContext(ctx, "middleware/ExtractToken")
+	defer span.Finish()
+
+
+	bearToken := r.Header.Get("Authorization")
+	strArr := strings.Split(bearToken, " ")
+	if len(strArr) == 2{
+		return strArr[1]
+	} else {
+		if len(strArr) == 1 {
+			if strArr[0] != "" {
+				strArr2 := strings.Split(strArr[0], "\"")
+
+				return strArr2[1]
+			}
+		}
+	}
+	return ""
+}
+
+func ExtractUserId(ctx context.Context, r *http.Request) (string, error) {
+	span := tracer.StartSpanFromContext(ctx, "middleware/ExtractToken")
+	defer span.Finish()
+
+	ctx1 := tracer.ContextWithSpan(ctx, span)
+
+	tokenString := ExtractToken(ctx1, r)
+
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(os.Getenv("ACCESS_SECRET")), nil
+	})
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+
+	if ok  {
+		userId, ok := claims["user_id"].(string)
+		if !ok {
+			return "", err
+		}
+
+		return userId, nil
+	}
+	return "", err
 }
