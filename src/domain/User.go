@@ -8,7 +8,7 @@ type User struct {
 	Password string `json:"password"`
 	Email string `json:"email" ,gorm:"unique" validate:"required,email"`
 	Address string `json:"address"`
-	Phone string `json:"phone" validate:"required"`
+	Phone string `json:"phone" validate:"required,phone"`
 	Birthday string `json:"birthday"`
 	Gender string `json:"gender"`
 	Web string `json:"web"`

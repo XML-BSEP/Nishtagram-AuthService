@@ -10,6 +10,7 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 	"net/http"
 	"strings"
+	"unicode"
 )
 
 type registrationHandler struct {
@@ -55,7 +56,7 @@ func (r *registrationHandler) Register(ctx *gin.Context) {
 
 	if user.Name == "" || user.Surname == "" || user.Email == "" || user.Address == "" || user.Phone == "" || user.Birthday  == "" ||
 		user.Gender == "" || user.Web == "" || user.Bio  == "" || user.Username == "" || user.Password == ""{
-		ctx.JSON(400, gin.H{"message" : "Field are empty or xss attack happened"})
+		ctx.JSON(400, gin.H{"message" : "Fields are empty or xss attack happened"})
 		return
 	}
 
@@ -67,6 +68,11 @@ func (r *registrationHandler) Register(ctx *gin.Context) {
 
 	if errValidation != nil {
 		ctx.JSON(400, gin.H{"message" : errorsString[0]})
+		return
+	}
+
+	if pasval1, pasval2, pasval3, pasval4 := verifyPassword(user.Password); pasval1 == false || pasval2 == false || pasval3 == false || pasval4 == false {
+		ctx.JSON(400, gin.H{"message" : "Password must have minimum 1 uppercase letter, 1 lowercase letter, 1 digit and 1 special character and needs to be minimum 8 characters long"})
 		return
 	}
 
@@ -160,5 +166,26 @@ func (r *registrationHandler) ResendCode(ctx *gin.Context) {
 }
 
 
-
+func verifyPassword(s string) (eightOrMore, number, upper, special bool)  {
+	letters := 0
+	for _, c := range s {
+		switch {
+		case unicode.IsNumber(c):
+			number = true
+			letters++
+		case unicode.IsUpper(c):
+			upper = true
+			letters++
+		case unicode.IsPunct(c) || unicode.IsSymbol(c):
+			special = true
+			letters++
+		case unicode.IsLetter(c) || c == ' ':
+			letters++
+		default:
+			return false, false, false, false
+		}
+	}
+	eightOrMore = letters >= 8
+	return
+}
 
