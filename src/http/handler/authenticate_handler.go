@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/opentracing/opentracing-go"
+	"strings"
 )
 
 const (
@@ -42,12 +44,25 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 
 	decoder := json.NewDecoder(ctx.Request.Body)
 
+
+
+
 	if err := decoder.Decode(&authenticationDto); err != nil {
 		tracer.LogError(span, fmt.Errorf("message=%s; err=%s\n",body_decoding_err, err))
 		ctx.JSON(400, gin.H{"message" : body_decoding_err})
 		ctx.Abort()
 		return
 	}
+
+	policy := bluemonday.UGCPolicy()
+	authenticationDto.Username = strings.TrimSpace(policy.Sanitize(authenticationDto.Username))
+	authenticationDto.Password = strings.TrimSpace(policy.Sanitize(authenticationDto.Password))
+
+	if authenticationDto.Password == " " || authenticationDto.Username == " " {
+		ctx.JSON(400, gin.H{"message" : "Field are empty or xss attack happened"})
+		return
+	}
+
 
 	span.LogFields(tracer.LogString("handler", fmt.Sprintf("request_username= %s", authenticationDto.Username)))
 
@@ -93,6 +108,9 @@ func (a *authenticateHandler) ValidateToken(ctx *gin.Context) {
 		ctx.Abort()
 		return
 	}
+
+	policy := bluemonday.UGCPolicy()
+	tokenDto.TokenId = strings.TrimSpace(policy.Sanitize(tokenDto.TokenId))
 
 	at, err := a.AuthenticationUsecase.FetchAuthToken(ctx, tokenDto.TokenId)
 

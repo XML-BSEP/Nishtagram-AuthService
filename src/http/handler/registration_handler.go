@@ -3,10 +3,13 @@ package handler
 import (
 	"auth-service/domain"
 	"auth-service/infrastructure/dto"
+	validator2 "auth-service/infrastructure/validator"
 	"auth-service/usecase"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"github.com/microcosm-cc/bluemonday"
 	"net/http"
+	"strings"
 )
 
 type registrationHandler struct {
@@ -32,6 +35,52 @@ func (r *registrationHandler) Register(ctx *gin.Context) {
 		return
 	}
 
+
+	policy := bluemonday.UGCPolicy()
+	user.ID = strings.TrimSpace(policy.Sanitize(user.ID))
+	user.Name = strings.TrimSpace(policy.Sanitize(user.Name))
+	user.Surname = strings.TrimSpace(policy.Sanitize(user.Surname))
+	user.Username = strings.TrimSpace(policy.Sanitize(user.Username))
+	user.Password = strings.TrimSpace(policy.Sanitize(user.Password))
+	user.Email = strings.TrimSpace(policy.Sanitize(user.Email))
+	user.Address = strings.TrimSpace(policy.Sanitize(user.Address))
+	user.Phone = strings.TrimSpace(policy.Sanitize(user.Phone))
+	user.Birthday = strings.TrimSpace(policy.Sanitize(user.Birthday))
+	user.Gender = strings.TrimSpace(policy.Sanitize(user.Gender))
+	user.Web = strings.TrimSpace(policy.Sanitize(user.Web))
+	user.Bio = strings.TrimSpace(policy.Sanitize(user.Bio))
+	user.Image = strings.TrimSpace(policy.Sanitize(user.Image))
+	user.ConfirmationCode = strings.TrimSpace(policy.Sanitize(user.ConfirmationCode))
+
+	if user.ID == "" || user.Name == "" || user.Surname == "" || user.Email == "" || user.Address == "" || user.Phone == "" || user.Birthday  == "" ||
+		user.Gender == "" || user.Web == "" || user.Bio  == "" || user.Username == "" || user.ConfirmationCode == "" || user.Password == ""{
+		ctx.JSON(400, gin.H{"message" : "Field are empty or xss attack happened"})
+		return
+	}
+
+	customValidator := validator2.NewCustomValidator()
+	translator, _ := customValidator.RegisterEnTranslation()
+	errValidation := customValidator.Validator.Struct(user)
+	errs := customValidator.TranslateError(errValidation, translator)
+	errorsString := customValidator.GetErrorsString(errs)
+
+	if errValidation != nil {
+		ctx.JSON(400, gin.H{"message" : errorsString[0]})
+		return
+	}
+
+
+	if user.Birthday == "" {
+		ctx.JSON(400, gin.H{"message" : "Enter birthday!"})
+		return
+	}
+
+	if strings.Contains(user.Username, " ") {
+		ctx.JSON(400, gin.H{"message" : "Username is not in valid format!"})
+		return
+	}
+
+
 	if r.RegistrationUsecase.IsAlreadyRegistered(ctx, user.Username, user.Email) {
 		ctx.JSON(402, gin.H{"message" : "User already exists"})
 		return
@@ -48,6 +97,16 @@ func (r *registrationHandler) ConfirmAccount(ctx *gin.Context) {
 	var dto dto.AccountConfirmationDto
 	if err := decoder.Decode(&dto); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message" : "Error decoding json"})
+		return
+	}
+
+
+	policy := bluemonday.UGCPolicy()
+	dto.Username = strings.TrimSpace(policy.Sanitize(dto.Username))
+	dto.Code = strings.TrimSpace(policy.Sanitize(dto.Code))
+
+	if dto.Username == "" || dto.Code == "" {
+		ctx.JSON(400, gin.H{"message" : "Field are empty or xss attack happened"})
 		return
 	}
 

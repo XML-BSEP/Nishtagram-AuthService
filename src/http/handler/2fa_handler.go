@@ -8,9 +8,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/opentracing/opentracing-go"
 	"image/jpeg"
 	"os"
+	"strings"
 )
 
 const (
@@ -53,6 +55,9 @@ func (t *totpHandler) GenerateSecret(ctx *gin.Context) {
 		ctx.JSON(400, gin.H{"message" : body_decoding_err})
 		return
 	}
+
+	policy := bluemonday.UGCPolicy()
+	totpDto.Username = strings.TrimSpace(policy.Sanitize(totpDto.Username))
 
 	ctx1 := tracer.ContextWithSpan(ctx, span)
 
@@ -104,6 +109,10 @@ func (t *totpHandler) Verify(ctx *gin.Context) {
 		ctx.JSON(400, gin.H{"message" : body_decoding_err})
 		return
 	}
+
+	policy := bluemonday.UGCPolicy()
+	totpSecretDto.Passcode = strings.TrimSpace(policy.Sanitize(totpSecretDto.Passcode))
+	totpSecretDto.UserId = strings.TrimSpace(policy.Sanitize(totpSecretDto.UserId))
 
 	ctx1 := tracer.ContextWithSpan(ctx, span)
 
@@ -167,6 +176,10 @@ func (t *totpHandler) Disable(ctx *gin.Context) {
 		ctx.JSON(400, gin.H{"message" : body_decoding_err})
 		return
 	}
+
+	policy := bluemonday.UGCPolicy()
+	totpSecretDto.Passcode = strings.TrimSpace(policy.Sanitize(totpSecretDto.Passcode))
+	totpSecretDto.UserId = strings.TrimSpace(policy.Sanitize(totpSecretDto.UserId))
 
 	ctx1 := tracer.ContextWithSpan(ctx, span)
 
