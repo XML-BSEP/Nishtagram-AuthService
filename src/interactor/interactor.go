@@ -94,7 +94,7 @@ func (i *interactor) NewJwtUsecase() usecase.JwtUsecase {
 }
 
 func (i *interactor) NewAuthenticationHandler() handler.AuthenticationHandler {
-	return handler.NewAuthenticationHandler(i.NewAuthenticationUsecase(), i.NewJwtUsecase(), i.NewProfileInfoUsecase(), i.Tracer)
+	return handler.NewAuthenticationHandler(i.NewAuthenticationUsecase(), i.NewJwtUsecase(), i.NewProfileInfoUsecase(), i.NewTotpUsecase(), i.Tracer)
 }
 
 func (i *interactor) NewProfileInfoUsecase() usecase.ProfileInfoUsecase {

@@ -1,25 +1,31 @@
 package handler
 
 import (
+	"auth-service/domain"
+	"auth-service/http/middleware"
 	"auth-service/infrastructure/dto"
 	"auth-service/infrastructure/tracer"
 	"auth-service/usecase"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/opentracing/opentracing-go"
+	"net/http"
 )
 
 const (
 	body_decoding_err = "Body decoding error"
 	invalid_credentials_err = "Wrong username or password"
 	token_err = "Can not create token"
+	totp_invalid_user_id = "User id is not valid"
 )
 
 type authenticateHandler struct {
 	AuthenticationUsecase usecase.AuthenticationUsecase
 	JwtUsecase usecase.JwtUsecase
 	ProfileInfoUsecase usecase.ProfileInfoUsecase
+	TotpUsecase usecase.TotpUsecase
 	Tracer opentracing.Tracer
 }
 
@@ -29,8 +35,8 @@ type AuthenticationHandler interface {
 	Logout(ctx *gin.Context)
 }
 
-func NewAuthenticationHandler(authUsecase usecase.AuthenticationUsecase, jwtUSecase usecase.JwtUsecase, profileInfoUsecase usecase.ProfileInfoUsecase, tracer opentracing.Tracer) AuthenticationHandler {
-	return &authenticateHandler{authUsecase, jwtUSecase,  profileInfoUsecase, tracer}
+func NewAuthenticationHandler(authUsecase usecase.AuthenticationUsecase, jwtUSecase usecase.JwtUsecase, profileInfoUsecase usecase.ProfileInfoUsecase, totpUsecase usecase.TotpUsecase, tracer opentracing.Tracer) AuthenticationHandler {
+	return &authenticateHandler{authUsecase, jwtUSecase,  profileInfoUsecase, totpUsecase, tracer}
 }
 
 func (a *authenticateHandler) Login(ctx *gin.Context) {
@@ -66,6 +72,23 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 		ctx.Abort()
 		return
 	}
+
+
+
+	_, err = a.TotpUsecase.GetSecretByProfileInfoId(ctx1, profileInfo.ID)
+
+	if err == nil {
+		userInfo, err := a.CreateTemporaryToken(ctx1, ctx.Request, profileInfo.ID, profileInfo)
+		if err != nil {
+			tracer.LogError(span, err)
+			ctx.JSON(400, gin.H{"message" : "Can not create temporary code"})
+			return
+		}
+
+		ctx.JSON(200, userInfo)
+		return
+	}
+
 
 	token, err := a.JwtUsecase.CreateToken(ctx1, profileInfo.Role.RoleName, profileInfo.ID)
 	if err != nil {
@@ -136,6 +159,38 @@ func (a *authenticateHandler) Logout(ctx *gin.Context) {
 func (a *authenticateHandler) Login1(ctx *gin.Context) {
 
 	ctx.JSON(200, gin.H{"message" : "Sucessful logout"})
+}
+
+func (a *authenticateHandler) CreateTemporaryToken(ctx context.Context, request *http.Request, userId string, profileInfo domain.ProfileInfo) (*dto.AuthenticatedUserInfoDto, error){
+	span := tracer.StartSpanFromContext(ctx, "handler/createTemporaryToken")
+	defer span.Finish()
+
+	ctx1 := tracer.ContextWithSpan(ctx, span)
+
+	role, err := middleware.ExtractUserRole(ctx1, request)
+
+	if err != nil {
+		tracer.LogError(span, err)
+		return nil, err
+	}
+
+	temporaryToken, err := a.JwtUsecase.CreateTemporaryToken(ctx1, role, userId)
+
+	if err != nil {
+		tracer.LogError(span, err)
+		return nil, err
+	}
+
+	authenticatedUserInfo := dto.AuthenticatedUserInfoDto{
+		Token: temporaryToken.TokenUuid,
+		Role: profileInfo.Role.RoleName,
+		Id: profileInfo.ID,
+	}
+
+	a.AuthenticationUsecase.SaveTemporaryToken(ctx1, temporaryToken)
+
+
+	return &authenticatedUserInfo, nil
 }
 
 func (a *authenticateHandler) logMetadata(span opentracing.Span, ctx *gin.Context) {

@@ -48,6 +48,10 @@ func ExtractToken(ctx context.Context, r *http.Request) string {
 
 
 	bearToken := r.Header.Get("Authorization")
+	if bearToken == "" {
+		tracer.LogError(span, fmt.Errorf("message= %s", "Authorization header does noe exist"))
+		return ""
+	}
 	strArr := strings.Split(bearToken, " ")
 	if len(strArr) == 2{
 		return strArr[1]
@@ -71,6 +75,11 @@ func ExtractUserId(ctx context.Context, r *http.Request) (string, error) {
 
 	tokenString := ExtractToken(ctx1, r)
 
+	if tokenString == "" {
+		tracer.LogError(span, fmt.Errorf("message= %s", "Authorization header does noe exist"))
+		return "", fmt.Errorf("", "message= %s", "Authorization header does noe exist")
+	}
+
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return []byte(os.Getenv("ACCESS_SECRET")), nil
 	})
@@ -79,6 +88,31 @@ func ExtractUserId(ctx context.Context, r *http.Request) (string, error) {
 
 	if ok  {
 		userId, ok := claims["user_id"].(string)
+		if !ok {
+			return "", err
+		}
+
+		return userId, nil
+	}
+	return "", err
+}
+
+func ExtractUserRole(ctx context.Context, r *http.Request) (string, error) {
+	span := tracer.StartSpanFromContext(ctx, "middleware/ExtractUserRole")
+	defer span.Finish()
+
+	ctx1 := tracer.ContextWithSpan(ctx, span)
+
+	tokenString := ExtractToken(ctx1, r)
+
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(os.Getenv("ACCESS_SECRET")), nil
+	})
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+
+	if ok  {
+		userId, ok := claims["role"].(string)
 		if !ok {
 			return "", err
 		}
