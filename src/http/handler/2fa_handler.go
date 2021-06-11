@@ -20,6 +20,7 @@ const (
 	totp_is_enabled = "Two factor authentication is already enabled"
 	totp_disable_error = "Two factor authentication disabling error"
 	totp_disable = "Two factor authentication successfully disabled"
+	token_invalid = "Temporary token is not valid"
 )
 
 type totpHandler struct {
@@ -187,6 +188,8 @@ func (t *totpHandler) Disable(ctx *gin.Context) {
 
 }
 
+
+
 func (t *totpHandler) logMetadata(span opentracing.Span, ctx *gin.Context) {
 	span.LogFields(
 		tracer.LogString("handler: ", fmt.Sprintf("handling login at %s\n", ctx.Request.URL.Path)),
@@ -195,4 +198,6 @@ func (t *totpHandler) logMetadata(span opentracing.Span, ctx *gin.Context) {
 		tracer.LogString("handler", fmt.Sprintf("header= %s\n", ctx.Request.Header)),
 	)
 }
+
+
 

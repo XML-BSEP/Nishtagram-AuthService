@@ -11,12 +11,12 @@ type profileInfoRepository struct {
 	Conn *gorm.DB
 }
 
-
 type ProfileInfoRepository interface {
 	GetProfileInfoByEmail(context context.Context, email string) (domain.ProfileInfo, error)
 	GetProfileInfoByUsername(context context.Context, username string) (domain.ProfileInfo, error)
 	Create(context context.Context, profileInfo *domain.ProfileInfo) error
 	GetProfileinfoByUsernameOrEmail(context context.Context, username, email string) error
+	GetProfileInfoById(context context.Context, id string) (*domain.ProfileInfo, error)
 }
 
 func NewProfileInfoRepository(conn *gorm.DB) ProfileInfoRepository {
@@ -60,6 +60,11 @@ func (p *profileInfoRepository) GetProfileinfoByUsernameOrEmail(context context.
 
 }
 
+func (p *profileInfoRepository) GetProfileInfoById(context context.Context, id string) (*domain.ProfileInfo, error) {
+	var value *domain.ProfileInfo
+	err :=  p.Conn.Where("id = ?", id).Take(&value).Error
+	return value, err
+}
 
 
 

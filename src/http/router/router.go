@@ -17,6 +17,7 @@ func NewRouter(handler interactor.AppHandler) *gin.Engine {
 	router.POST("/verifySecret", handler.Verify)
 	router.GET("/isTotpEnabled", handler.IsEnabled)
 	router.POST("/disableTotp", handler.Disable)
+	router.POST("/validateTotp", handler.Validate)
 	return router
 }
 

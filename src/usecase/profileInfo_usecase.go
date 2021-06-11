@@ -11,10 +11,12 @@ type profileInfoUsecase struct {
 	ProfileInfoRepository repository.ProfileInfoRepository
 }
 
+
 type ProfileInfoUsecase interface {
 	GetProfileInfoByUsername(context context.Context, username string) (domain.ProfileInfo, error)
 	Create(context context.Context, profileInfo *domain.ProfileInfo) error
 	ExistsByUsernameOrEmail(context context.Context, username, email string) bool
+	GetProfileInfoById(context context.Context, id string) (*domain.ProfileInfo, error)
 }
 
 func NewProfileInfoUsecase(p repository.ProfileInfoRepository) ProfileInfoUsecase {
@@ -39,4 +41,12 @@ func (p *profileInfoUsecase) ExistsByUsernameOrEmail(context context.Context, us
 		return false
 	}
 	return true
+}
+
+func (p *profileInfoUsecase) GetProfileInfoById(context context.Context, id string) (*domain.ProfileInfo, error) {
+	span := tracer.StartSpanFromContext(context, "usecase/GetProfileInfoById")
+	defer span.Finish()
+
+	ctx1 := tracer.ContextWithSpan(context, span)
+	return p.ProfileInfoRepository.GetProfileInfoById(ctx1, id)
 }
