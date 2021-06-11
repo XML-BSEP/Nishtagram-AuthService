@@ -54,7 +54,7 @@ func SendRestartPasswordMail(subjectMail string, verCode string) error {
 
 	emailAuth := smtp.PlainAuth("", emailFrom, emailPassword, emailHost)
 
-	t, _  := template.ParseFiles("src/assets/mail_template/template_reset.html")
+	t, _  := template.ParseFiles("assets/mail_template/template_reset.html")
 	var body bytes.Buffer
 	headers := "MIME-version: 1.0;\nContent-Type: text/html;"
 	body.Write([]byte(fmt.Sprintf("Subject: Code for password reset by Duke Strategic Techologies\n%s\n\n", headers)))

@@ -17,6 +17,7 @@ type ProfileInfoRepository interface {
 	GetProfileInfoByUsername(context context.Context, username string) (domain.ProfileInfo, error)
 	Create(context context.Context, profileInfo *domain.ProfileInfo) error
 	GetProfileinfoByUsernameOrEmail(context context.Context, username, email string) error
+	Update(context context.Context, profileInfo *domain.ProfileInfo) error
 }
 
 func NewProfileInfoRepository(conn *gorm.DB) ProfileInfoRepository {
@@ -46,6 +47,10 @@ func (p *profileInfoRepository) GetProfileInfoByUsername(context context.Context
 
 func (p *profileInfoRepository) Create(context context.Context, profileInfo *domain.ProfileInfo) error {
 	return p.Conn.Create(profileInfo).Error
+}
+func (p *profileInfoRepository) Update(context context.Context, profileInfo *domain.ProfileInfo) error{
+	err := p.Conn.Save(profileInfo).Error
+	return err
 }
 
 func (p *profileInfoRepository) GetByUsernameOrEmail(context context.Context, username, email string) (domain.ProfileInfo, error) {

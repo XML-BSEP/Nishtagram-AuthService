@@ -94,11 +94,11 @@ func (i *interactor) NewJwtUsecase() usecase.JwtUsecase {
 }
 
 func (i *interactor) NewAuthenticationHandler() handler.AuthenticationHandler {
-	return handler.NewAuthenticationHandler(i.NewAuthenticationUsecase(), i.NewJwtUsecase(), i.NewProfileInfoUsecase(), i.Tracer)
+	return handler.NewAuthenticationHandler(i.NewAuthenticationUsecase(), i.NewJwtUsecase(), i.NewProfileInfoUsecase(), i.Tracer, i.NewRedisUsecase())
 }
 
 func (i *interactor) NewProfileInfoUsecase() usecase.ProfileInfoUsecase {
-	return usecase.NewProfileInfoUsecase(i.NewProfileInfoRepository())
+	return usecase.NewProfileInfoUsecase(i.NewProfileInfoRepository(), i.NewRedisUsecase())
 }
 
 func (i *interactor) NewRegistrationUsecase() usecase.RegistrationUsecase {

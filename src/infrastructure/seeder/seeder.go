@@ -39,7 +39,7 @@ func seedProfiles(gorm *gorm.DB) {
 
 	profile1 := domain.ProfileInfo{
 		ID: "e2b5f92e-c31b-11eb-8529-0242ac130003",
-		Email: "user1@gmail.com",
+		Email: "alexignjat1998@gmail.com",
 		Username: "user1",
 		Password: "$2y$10$jwbLvrZYHgZN3HFJIV1vFu.lxi6SiiKFzx2B3RItMxruVD8wNPqdS", //user1
 		Role: roleUser,
