@@ -4,6 +4,7 @@ import (
 	"auth-service/domain"
 	"auth-service/infrastructure/tracer"
 	"context"
+	logger "github.com/jelena-vlajkov/logger/logger"
 	"time"
 )
 const (
@@ -13,6 +14,7 @@ const (
 )
 type authenticationUsecase struct {
 	RedisUsecase RedisUsecase
+	logger *logger.Logger
 }
 
 
@@ -27,12 +29,13 @@ type AuthenticationUsecase interface {
 	DeleteTemporaryToken(ctx context.Context, tokenUuid string) error
 }
 
-func NewAuthenticationUsecase(redisUsecase RedisUsecase) AuthenticationUsecase{
-	return &authenticationUsecase{redisUsecase}
+func NewAuthenticationUsecase(redisUsecase RedisUsecase, logger *logger.Logger) AuthenticationUsecase{
+	return &authenticationUsecase{redisUsecase, logger}
 }
 
 
 func (a *authenticationUsecase) SaveAuthToken(ctx context.Context, userId uint, td *domain.TokenDetails) error {
+	a.logger.Logger.Infof("saving auth token for user %v\n", userId)
 	span := tracer.StartSpanFromContext(ctx, "usecase/SaveAuthToken")
 	defer span.Finish()
 
@@ -50,6 +53,7 @@ func (a *authenticationUsecase) SaveAuthToken(ctx context.Context, userId uint, 
 }
 
 func (a *authenticationUsecase) FetchAuthToken(ctx context.Context, tokenUuid string) ([]byte, error) {
+	a.logger.Logger.Infof("fetching auth token")
 	key := authToken + tokenUuid
 	value, err := a.RedisUsecase.GetValueByKey(ctx, key)
 
@@ -61,6 +65,7 @@ func (a *authenticationUsecase) FetchAuthToken(ctx context.Context, tokenUuid st
 }
 
 func (a *authenticationUsecase) SaveRefreshToken(ctx context.Context, userId uint, td *domain.TokenDetails) error {
+	a.logger.Logger.Infof("saving refresh token for user %v\n", userId)
 	rt := time.Unix(td.RtExpires, 0)
 	now := time.Now()
 
@@ -73,6 +78,7 @@ func (a *authenticationUsecase) SaveRefreshToken(ctx context.Context, userId uin
 }
 
 func (a *authenticationUsecase) FetchRefreshToken(ctx context.Context, refreshTokenUuid string) ([]byte, error) {
+	a.logger.Logger.Infof("fetching refresh token")
 	key := refreshToken + refreshTokenUuid
 	value, err := a.RedisUsecase.GetValueByKey(ctx, key)
 
@@ -84,12 +90,14 @@ func (a *authenticationUsecase) FetchRefreshToken(ctx context.Context, refreshTo
 }
 
 func (a *authenticationUsecase) DeleteAuthToken(ctx context.Context, tokenUuid string) error {
+	a.logger.Logger.Infof("deleting auth token")
 	key := authToken + tokenUuid
 
 	return a.RedisUsecase.DeleteValueByKey(ctx, key)
 }
 
 func (a *authenticationUsecase) SaveTemporaryToken(ctx context.Context, td *domain.TemporaryTokenDetails) error {
+	a.logger.Logger.Infof("saving temporary token")
 	span := tracer.StartSpanFromContext(ctx, "usecase/SaveTemporaryToken")
 	defer span.Finish()
 
@@ -107,6 +115,7 @@ func (a *authenticationUsecase) SaveTemporaryToken(ctx context.Context, td *doma
 }
 
 func (a *authenticationUsecase) FetchTemporaryToken(ctx context.Context, tokenUuid string) ([]byte, error) {
+	a.logger.Logger.Infof("fetching temporary token")
 	span := tracer.StartSpanFromContext(ctx, "usecase/FetchTemporaryToken")
 	defer span.Finish()
 
@@ -124,6 +133,7 @@ func (a *authenticationUsecase) FetchTemporaryToken(ctx context.Context, tokenUu
 }
 
 func (a *authenticationUsecase) DeleteTemporaryToken(ctx context.Context, tokenUuid string) error {
+	a.logger.Logger.Infof("deleting temporary token")
 	span := tracer.StartSpanFromContext(ctx, "usecase/DeleteTemporaryToken")
 	defer span.Finish()
 

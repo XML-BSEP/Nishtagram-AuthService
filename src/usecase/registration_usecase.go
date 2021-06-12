@@ -9,6 +9,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"github.com/google/uuid"
+	logger "github.com/jelena-vlajkov/logger/logger"
 	"time"
 )
 
@@ -19,6 +20,7 @@ type registrationUsecase struct {
 	RedisUsecase RedisUsecase
 	ProfileInfoUsecase ProfileInfoUsecase
 	UserGateway gateway.UserGateway
+	logger *logger.Logger
 }
 
 
@@ -29,8 +31,9 @@ type RegistrationUsecase interface {
 	ResendCode(ctx context.Context, email string) (error, string, string)
 }
 
-func NewRegistrationUsecase(redisUsecase RedisUsecase, profileInfoUsecase ProfileInfoUsecase, gateway gateway.UserGateway) RegistrationUsecase{
+func NewRegistrationUsecase(redisUsecase RedisUsecase, profileInfoUsecase ProfileInfoUsecase, gateway gateway.UserGateway, logger *logger.Logger) RegistrationUsecase{
 	return &registrationUsecase{
+		logger: logger,
 		RedisUsecase: redisUsecase,
 		ProfileInfoUsecase: profileInfoUsecase,
 		UserGateway: gateway,
@@ -38,6 +41,7 @@ func NewRegistrationUsecase(redisUsecase RedisUsecase, profileInfoUsecase Profil
 }
 
 func (s *registrationUsecase) Register(context context.Context, user domain.User) error{
+	s.logger.Logger.Infof("registering user with email %v\n", user.Email)
 	redisKey := redisKeyPattern + user.Email
 
 	confirmationCode := helper.RandomStringGenerator(8)
@@ -45,11 +49,13 @@ func (s *registrationUsecase) Register(context context.Context, user domain.User
 	fmt.Print("Generisan kod: " + confirmationCode)
 	fmt.Print("Hashovan kod: " + string(hashedConfirmationCode))
 	if err != nil {
+		s.logger.Logger.Errorf("error while registering user, error %v\n", err)
 		return err
 	}
 
 	hashedPassword, err := helper.Hash(user.Password)
 	if err != nil {
+		s.logger.Logger.Errorf("error while registering user, error %v\n", err)
 		return err
 	}
 
@@ -61,6 +67,7 @@ func (s *registrationUsecase) Register(context context.Context, user domain.User
 	expiration  := 1000000000 * 3600 * 2 //2h
 	serializedUser, err := serialize(user)
 	if err != nil {
+		s.logger.Logger.Errorf("error while registering user, error %v\n", err)
 		return err
 	}
 	err = s.RedisUsecase.AddKeyValueSet(context, redisKey, serializedUser, time.Duration(expiration));
@@ -74,6 +81,7 @@ func (s *registrationUsecase) Register(context context.Context, user domain.User
 
 
 func (s *registrationUsecase) ConfirmAccount(context context.Context, code string, email string) error {
+	s.logger.Logger.Infof("confirming account for email %v\n", email)
 	key := redisKeyPattern + email
 	bytes, err := s.RedisUsecase.GetValueByKey(context, key)
 	if err != nil {
@@ -83,16 +91,20 @@ func (s *registrationUsecase) ConfirmAccount(context context.Context, code strin
 
 	user, err := deserialize(bytes)
 	if err != nil {
+		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
 		return err
 	}
 	fmt.Println("User id : " + user.ID)
 	if err := helper.Verify(code, user.ConfirmationCode); err != nil {
+		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
 		return err
 	}
 	if err := s.RedisUsecase.DeleteValueByKey(context, key); err != nil {
+		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
 		return err
 	}
 	if err := s.ProfileInfoUsecase.Create(context, userToProfleInfo(user)); err != nil {
+		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
 		return err
 	}
 
@@ -104,6 +116,7 @@ func (s *registrationUsecase) ConfirmAccount(context context.Context, code strin
 }
 
 func (s *registrationUsecase) IsAlreadyRegistered(context context.Context, username, email string) bool {
+	s.logger.Logger.Infof("checking if user already exists")
 	redisKey := redisKeyPattern + email
 	if s.RedisUsecase.ExistsByKey(context, redisKey) {
 		return true
@@ -127,6 +140,7 @@ func userToProfleInfo(user *domain.User) *domain.ProfileInfo{
 }
 
 func (s *registrationUsecase) ResendCode(ctx context.Context ,email string) (error, string, string) {
+	s.logger.Logger.Infof("resending code for email %v\n", email)
 	rediskey := redisKeyPattern + email
 
 	if !s.RedisUsecase.ExistsByKey(ctx,rediskey) {
@@ -140,6 +154,7 @@ func (s *registrationUsecase) ResendCode(ctx context.Context ,email string) (err
 
 	user, err := deserialize(bytes)
 	if err != nil {
+		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
 		return err, "", ""
 	}
 
@@ -154,6 +169,7 @@ func (s *registrationUsecase) ResendCode(ctx context.Context ,email string) (err
 
 	serializedUser, err := serialize(*user)
 	if err != nil {
+		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
 		return err, "" ,""
 	}
 	err = s.RedisUsecase.AddKeyValueSet(ctx, redisKey, serializedUser, time.Duration(expiration))

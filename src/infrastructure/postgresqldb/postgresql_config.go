@@ -2,30 +2,30 @@ package postgresqldb
 
 import (
 	"fmt"
+	logger "github.com/jelena-vlajkov/logger/logger"
 	"github.com/spf13/viper"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"log"
 )
 
-func NewDBConnection() *gorm.DB {
-	return getConnection()
+func NewDBConnection(logger *logger.Logger) *gorm.DB {
+	return getConnection(logger)
 }
 
-func init_viper() {
-	viper.SetConfigFile(`configurations/postgresql.json`)
+func init_viper(logger *logger.Logger) {
+	viper.SetConfigFile(`src/configurations/postgresql.json`)
 	err := viper.ReadInConfig()
 	if err != nil {
-		panic(err)
+		logger.Logger.Infof("error while reading postgresql config file, error: %v\n", err)
 	}
 
 	if viper.GetBool(`debug`) {
-		log.Println("Service RUN on DEBUG mode")
+		logger.Logger.Infof("running in DEBUG mode")
 	}
 }
 
-func getConnection() *gorm.DB {
-	init_viper()
+func getConnection(logger *logger.Logger) *gorm.DB {
+	init_viper(logger)
 	var host string
 	if viper.GetBool(`docker`){
 		host = viper.GetString(`database.host_docker`)
@@ -43,7 +43,7 @@ func getConnection() *gorm.DB {
 	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{})
 
 	if err != nil {
-		panic(err)
+		logger.Logger.Fatalf("error while connection on postgreSQL, error: %v\n", err)
 	}
 
 	db.Set("gorm:table_options", "ENGINE=InnoDB")

@@ -4,11 +4,13 @@ import (
 	"auth-service/domain"
 	"auth-service/infrastructure/tracer"
 	"context"
+	logger "github.com/jelena-vlajkov/logger/logger"
 	"gorm.io/gorm"
 )
 
 type totpRepository struct {
 	Conn *gorm.DB
+	logger *logger.Logger
 }
 
 
@@ -18,8 +20,8 @@ type TotpRepository interface {
 	DeleteByProfileInfoId(context context.Context, profileInfoId string) error
 }
 
-func NewTotpRepository(conn *gorm.DB) TotpRepository {
-	return &totpRepository{conn}
+func NewTotpRepository(conn *gorm.DB, logger *logger.Logger) TotpRepository {
+	return &totpRepository{conn, logger}
 }
 
 func (t *totpRepository) GetSecretByProfileInfoId(context context.Context, profileInfoId string) (*string, error) {
@@ -28,6 +30,7 @@ func (t *totpRepository) GetSecretByProfileInfoId(context context.Context, profi
 
 	var totpSecret domain.TotpSecret
 	if err := t.Conn.Joins("ProfileInfo").Where("profile_info_id = ?", profileInfoId).Take(&totpSecret).Error; err != nil {
+		t.logger.Logger.Errorf("error while getting secret by profile info id %v, error: %v\n", profileInfoId, err)
 		tracer.LogError(span, err)
 		return nil, err
 	}
@@ -41,6 +44,7 @@ func (t *totpRepository) Create(context context.Context, totpSecret domain.TotpS
 	defer span.Finish()
 
 	if err := t.Conn.Create(&totpSecret).Error; err != nil {
+		t.logger.Logger.Errorf("error while creating secret for profile info id %v, error: %v\n", totpSecret.ProfileInfoId, err)
 		tracer.LogError(span, err)
 		return err
 	}
@@ -54,6 +58,7 @@ func (t *totpRepository) DeleteByProfileInfoId(context context.Context, profileI
 
 	totpSecret := domain.TotpSecret{}
 	if err := t.Conn.Where("profile_info_id = ?", profileInfoId).Delete(&totpSecret).Error; err != nil {
+		t.logger.Logger.Errorf("error while deleting secret for profile info id %v, error: %v\n", totpSecret.ProfileInfoId, err)
 		tracer.LogError(span, err)
 		return err
 	}

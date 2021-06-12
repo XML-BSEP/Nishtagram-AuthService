@@ -7,6 +7,7 @@ import (
 	"auth-service/infrastructure/tracer"
 	"auth-service/repository"
 	"auth-service/usecase"
+	logger "github.com/jelena-vlajkov/logger/logger"
 	"io"
 
 	resty2 "github.com/go-resty/resty/v2"
@@ -20,6 +21,7 @@ type interactor struct {
 	Conn   *gorm.DB
 	Tracer opentracing.Tracer
 	Closer io.Closer
+	logger *logger.Logger
 }
 
 type Interactor interface {
@@ -54,13 +56,14 @@ type AppHandler interface {
 	handler.TotpHandler
 }
 
-func NewInteractor(conn *gorm.DB) Interactor {
+func NewInteractor(conn *gorm.DB, logger *logger.Logger) Interactor {
 	tracer, closer := tracer.Init(tracing_name)
 	opentracing.SetGlobalTracer(tracer)
 	return &interactor{
 		Conn:   conn,
 		Tracer: tracer,
 		Closer: closer,
+		logger: logger,
 	}
 }
 
@@ -72,41 +75,41 @@ func (i *interactor) NewAppHandler() AppHandler {
 	return appHandler
 }
 func (i *interactor) NewProfileInfoRepository() repository.ProfileInfoRepository {
-	return repository.NewProfileInfoRepository(i.Conn)
+	return repository.NewProfileInfoRepository(i.Conn, i.logger)
 }
 
 func (i *interactor) NewRoleRepository() repository.RoleRepository {
-	return repository.NewRoleRepository(i.Conn)
+	return repository.NewRoleRepository(i.Conn, i.logger)
 }
 
 func (i *interactor) NewRedisUsecase() usecase.RedisUsecase {
-	redis := redisdb.NewReddisConn()
-	return usecase.NewRedisUsecase(redis)
+	redis := redisdb.NewReddisConn(i.logger)
+	return usecase.NewRedisUsecase(redis, i.logger)
 }
 
 func (i *interactor) NewAuthenticationUsecase() usecase.AuthenticationUsecase {
-	return usecase.NewAuthenticationUsecase(i.NewRedisUsecase())
+	return usecase.NewAuthenticationUsecase(i.NewRedisUsecase(), i.logger)
 }
 
 func (i *interactor) NewJwtUsecase() usecase.JwtUsecase {
-	return usecase.NewJwtUsecase(i.NewRedisUsecase())
+	return usecase.NewJwtUsecase(i.NewRedisUsecase(), i.logger)
 }
 
 func (i *interactor) NewAuthenticationHandler() handler.AuthenticationHandler {
 
-	return handler.NewAuthenticationHandler(i.NewAuthenticationUsecase(), i.NewJwtUsecase(), i.NewProfileInfoUsecase(), i.Tracer, i.NewRedisUsecase(), i.NewTotpUsecase())
+	return handler.NewAuthenticationHandler(i.NewAuthenticationUsecase(), i.NewJwtUsecase(), i.NewProfileInfoUsecase(), i.Tracer, i.NewRedisUsecase(), i.NewTotpUsecase(), i.logger)
 }
 
 func (i *interactor) NewProfileInfoUsecase() usecase.ProfileInfoUsecase {
-	return usecase.NewProfileInfoUsecase(i.NewProfileInfoRepository(), i.NewRedisUsecase())
+	return usecase.NewProfileInfoUsecase(i.NewProfileInfoRepository(), i.NewRedisUsecase(), i.logger)
 }
 
 func (i *interactor) NewRegistrationUsecase() usecase.RegistrationUsecase {
-	return usecase.NewRegistrationUsecase(i.NewRedisUsecase(), i.NewProfileInfoUsecase(), i.NewUserGateway())
+	return usecase.NewRegistrationUsecase(i.NewRedisUsecase(), i.NewProfileInfoUsecase(), i.NewUserGateway(), i.logger)
 }
 
 func (i *interactor) NewRegistrationHandler() handler.RegistrationHandler {
-	return handler.NewRegistrationHandler(i.NewRegistrationUsecase())
+	return handler.NewRegistrationHandler(i.NewRegistrationUsecase(), i.logger)
 }
 
 func (i *interactor) NewUserGateway() gateway.UserGateway {
@@ -115,13 +118,13 @@ func (i *interactor) NewUserGateway() gateway.UserGateway {
 }
 
 func (i *interactor) NewTotpRepository() repository.TotpRepository {
-	return repository.NewTotpRepository(i.Conn)
+	return repository.NewTotpRepository(i.Conn, i.logger)
 }
 
 func (i *interactor) NewTotpUsecase() usecase.TotpUsecase {
-	return usecase.NewTotpUsecase(i.NewTotpRepository(), i.NewRedisUsecase(), i.NewProfileInfoUsecase())
+	return usecase.NewTotpUsecase(i.NewTotpRepository(), i.NewRedisUsecase(), i.NewProfileInfoUsecase(), i.logger)
 }
 
 func (i *interactor) NewTotpHandler() handler.TotpHandler {
-	return handler.NewTotpHandler(i.NewTotpUsecase(), i.Tracer, i.NewProfileInfoUsecase())
+	return handler.NewTotpHandler(i.NewTotpUsecase(), i.Tracer, i.NewProfileInfoUsecase(), i.logger)
 }

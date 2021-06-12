@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	logger "github.com/jelena-vlajkov/logger/logger"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/opentracing/opentracing-go"
 	"image/jpeg"
@@ -29,6 +30,7 @@ type totpHandler struct {
 	TotpUsecase usecase.TotpUsecase
 	ProfileInfoUsecase usecase.ProfileInfoUsecase
 	Tracer opentracing.Tracer
+	logger *logger.Logger
 }
 
 
@@ -39,11 +41,12 @@ type TotpHandler interface {
 	 Disable(ctx *gin.Context)
 }
 
-func NewTotpHandler(totpUsecase usecase.TotpUsecase, tracer opentracing.Tracer, profileInfoUsecase usecase.ProfileInfoUsecase) TotpHandler {
-	return &totpHandler{totpUsecase,  profileInfoUsecase ,tracer}
+func NewTotpHandler(totpUsecase usecase.TotpUsecase, tracer opentracing.Tracer, profileInfoUsecase usecase.ProfileInfoUsecase, logger *logger.Logger) TotpHandler {
+	return &totpHandler{totpUsecase,  profileInfoUsecase ,tracer, logger}
 }
 
 func (t *totpHandler) GenerateSecret(ctx *gin.Context) {
+	t.logger.Logger.Infof("Handling GENERATING SECRET")
 	span := tracer.StartSpanFromRequest("handler", t.Tracer, ctx.Request)
 	defer span.Finish()
 	t.logMetadata(span, ctx)
@@ -52,6 +55,7 @@ func (t *totpHandler) GenerateSecret(ctx *gin.Context) {
 
 	var totpDto dto.TotpDto
 	if err := decoder.Decode(&totpDto); err != nil {
+		t.logger.Logger.Errorf("error while decoding json, error: %v\n", err)
 		tracer.LogError(span, fmt.Errorf("message=%s; err=%s\n",body_decoding_err, err))
 		ctx.JSON(400, gin.H{"message" : body_decoding_err})
 		return
@@ -65,6 +69,7 @@ func (t *totpHandler) GenerateSecret(ctx *gin.Context) {
 	key, err := t.TotpUsecase.GenereateTotpSecret(ctx1, totpDto.Username)
 
 	if err != nil {
+		t.logger.Logger.Errorf("error while generating totp secret, error: %v\n", err)
 		tracer.LogError(span, fmt.Errorf("message=%s; err=%s\n",totp_error, err))
 		ctx.JSON(400, gin.H{"message" : totp_error})
 		return
@@ -73,12 +78,14 @@ func (t *totpHandler) GenerateSecret(ctx *gin.Context) {
 	user, err := t.ProfileInfoUsecase.GetProfileInfoByUsername(ctx1, totpDto.Username)
 
 	if err != nil {
+		t.logger.Logger.Errorf("error while getting user info for %v, error: %v\n", totpDto.Username, err)
 		tracer.LogError(span, fmt.Errorf("message=%s; err=%s\n",totp_error, err))
 		ctx.JSON(400, gin.H{"message" : totp_error})
 		return
 	}
 
 	if err := t.TotpUsecase.SaveSecretTemporarily(ctx1, user.ID, key.Secret()); err != nil {
+		t.logger.Logger.Errorf("error while saving secret for user %v, error: %v\n", user.ID, err)
 		tracer.LogError(span, fmt.Errorf("message=%s; err=%s\n",totp_error, err))
 		ctx.JSON(400, gin.H{"message" : totp_error})
 		return
@@ -86,7 +93,7 @@ func (t *totpHandler) GenerateSecret(ctx *gin.Context) {
 
 	f, err := os.Create("img.jpg")
 	if err != nil {
-		panic(err)
+		t.logger.Logger.Errorf("error while creating qr image, error: %v\n", err)
 	}
 	defer f.Close()
 
@@ -98,6 +105,7 @@ func (t *totpHandler) GenerateSecret(ctx *gin.Context) {
 }
 
 func (t *totpHandler) Verify(ctx *gin.Context) {
+	t.logger.Logger.Println("Handling VERIFYING TOTP")
 	span := tracer.StartSpanFromRequest("handler", t.Tracer, ctx.Request)
 	defer span.Finish()
 	t.logMetadata(span, ctx)
@@ -106,6 +114,7 @@ func (t *totpHandler) Verify(ctx *gin.Context) {
 
 	var totpSecretDto dto.TotpSecretDto
 	if err := decoder.Decode(&totpSecretDto); err != nil {
+		t.logger.Logger.Errorf("error while decoding json, error: %v\n", err)
 		tracer.LogError(span, fmt.Errorf("message=%s; err=%s\n",body_decoding_err, err))
 		ctx.JSON(400, gin.H{"message" : body_decoding_err})
 		return
@@ -118,12 +127,14 @@ func (t *totpHandler) Verify(ctx *gin.Context) {
 	ctx1 := tracer.ContextWithSpan(ctx, span)
 
 	if !t.TotpUsecase.Verify(ctx1, totpSecretDto.Passcode, totpSecretDto.UserId) {
+		t.logger.Logger.Errorf("error while verifying totp for user %v", totpSecretDto.UserId)
 		tracer.LogError(span, fmt.Errorf("message=%s",totp_validation_error))
 		ctx.JSON(400, gin.H{"message" : totp_validation_error})
 		return
 	}
 
 	if err := t.TotpUsecase.SaveSecret(ctx1, totpSecretDto.UserId); err != nil {
+		t.logger.Logger.Errorf("error while saving totp secret for user %v, error: %v\n", totpSecretDto.UserId, err)
 		tracer.LogError(span, fmt.Errorf("message=%s",totp_validation_error))
 		ctx.JSON(400, gin.H{"message" : totp_validation_error})
 		return
@@ -133,6 +144,7 @@ func (t *totpHandler) Verify(ctx *gin.Context) {
 }
 
 func (t *totpHandler) IsEnabled(ctx *gin.Context) {
+	t.logger.Logger.Println("Handling IS ENABLED TOTP")
 	span := tracer.StartSpanFromRequest("handler", t.Tracer, ctx.Request)
 	defer span.Finish()
 
@@ -140,12 +152,14 @@ func (t *totpHandler) IsEnabled(ctx *gin.Context) {
 	userId, err := middleware.ExtractUserId(ctx1, ctx.Request)
 
 	if err != nil {
+		t.logger.Logger.Errorf("error while getting getting value if totp is enabled for user %v, error: %v\n", userId, err)
 		tracer.LogError(span, fmt.Errorf("messge= %s; err= %s", totp_is_enabled_wrong_id_error, err))
 		ctx.JSON(400, gin.H{"message" : totp_is_enabled_wrong_id_error})
 		return
 	}
 
 	if userId == "" {
+		t.logger.Logger.Error("error while getting getting value if totp is enabled, no user id\n")
 		tracer.LogError(span, fmt.Errorf("messge= %s; err= %s", totp_is_enabled_wrong_id_error, err))
 		ctx.JSON(400, gin.H{"message" : totp_is_enabled_wrong_id_error})
 		return
@@ -155,6 +169,7 @@ func (t *totpHandler) IsEnabled(ctx *gin.Context) {
 
 
 	if secret != nil {
+		t.logger.Logger.Errorf("error while getting secret from profile info, no secret")
 		tracer.LogError(span, fmt.Errorf("messge= %s; err= %s", totp_is_enabled, err))
 		ctx.JSON(400, gin.H{"message" : totp_is_enabled})
 		return
@@ -165,6 +180,7 @@ func (t *totpHandler) IsEnabled(ctx *gin.Context) {
 }
 
 func (t *totpHandler) Disable(ctx *gin.Context) {
+	t.logger.Logger.Println("Handling DISABLING TOTP")
 	span := tracer.StartSpanFromRequest("handler", t.Tracer, ctx.Request)
 	defer span.Finish()
 	t.logMetadata(span, ctx)
@@ -173,6 +189,7 @@ func (t *totpHandler) Disable(ctx *gin.Context) {
 
 	var totpSecretDto dto.TotpSecretDto
 	if err := decoder.Decode(&totpSecretDto); err != nil {
+		t.logger.Logger.Errorf("error while decoding json, error: %v\n", err)
 		tracer.LogError(span, fmt.Errorf("message=%s; err=%s\n",body_decoding_err, err))
 		ctx.JSON(400, gin.H{"message" : body_decoding_err})
 		return
@@ -185,12 +202,14 @@ func (t *totpHandler) Disable(ctx *gin.Context) {
 	ctx1 := tracer.ContextWithSpan(ctx, span)
 
 	if !t.TotpUsecase.Validate(ctx1, totpSecretDto.UserId, totpSecretDto.Passcode) {
+		t.logger.Logger.Errorf("error while validating secret for user %v, invalid passcode\n", totpSecretDto.UserId)
 		tracer.LogError(span, fmt.Errorf("message=%s",totp_validation_error))
 		ctx.JSON(400, gin.H{"message" : totp_validation_error})
 		return
 	}
 
 	if err := t.TotpUsecase.DeleteSecretByProfileId(ctx1, totpSecretDto.UserId); err != nil {
+		t.logger.Logger.Errorf("error while deleting secret for user %v, error: %v\n", totpSecretDto.UserId, err)
 		tracer.LogError(span, fmt.Errorf("message=%s; err=%s\n", totp_disable_error, err))
 		ctx.JSON(400, gin.H{"message" : totp_disable_error})
 		return
@@ -200,7 +219,6 @@ func (t *totpHandler) Disable(ctx *gin.Context) {
 	ctx.JSON(200, gin.H{"message" : totp_disable})
 
 }
-
 
 
 func (t *totpHandler) logMetadata(span opentracing.Span, ctx *gin.Context) {
