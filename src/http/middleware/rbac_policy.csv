@@ -5,12 +5,14 @@ p, ANONYMOUS, /confirmAccount, *
 p, ANONYMOUS, /resendRegistrationCode, *
 p, USER, /logout, *
 p, USER, /verifySecret, *
+p, ANONYMOUS, /isTotpEnabled, *
 p, USER, /isTotpEnabled, *
 p, USER, /disableTotp, *
 p, USER, /validateTotp, *
-p, USER, /validateTemporaryToken, *
+p, ANONYMOUS, /validateTemporaryToken, *
 p, USER, /resetPasswordMail, *
 p, USER, /resetPassword, *
+p, USER, /generateSecret, *
 
 
 

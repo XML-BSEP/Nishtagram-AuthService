@@ -4,11 +4,16 @@ import (
 	"auth-service/domain"
 	"auth-service/infrastructure/tracer"
 	"auth-service/repository"
+	"bufio"
 	"context"
+	"encoding/base64"
 	logger "github.com/jelena-vlajkov/logger/logger"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"image"
+	"io/ioutil"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -34,11 +39,36 @@ type TotpUsecase interface {
 	GetSecretByProfileInfoId(context context.Context, profileInfoId string) (*string, error)
 	DeleteSecretByProfileId(context context.Context, profileInfoId string) error
 	Validate(context context.Context, profileInfoId, passcode string) bool
+	Base64Image(context context.Context, img string) (string, error)
 }
 
 func NewTotpUsecase(repository repository.TotpRepository, redisUsecase RedisUsecase, profileInfoUsecase ProfileInfoUsecase, logger *logger.Logger) TotpUsecase {
 	return &totpUsecase{TotpRepository: repository, RedisUsecase: redisUsecase, logger: logger}
 }
+
+
+func (t *totpUsecase) Base64Image(context context.Context, img string) (string, error) {
+	t.logger.Logger.Infof("decoding base64 for qrcode\n")
+	workingDirectory, _ := os.Getwd()
+	if !strings.HasSuffix(workingDirectory, "src") {
+		firstPart := strings.Split(workingDirectory, "src")
+		value := firstPart[0] + "/src"
+		workingDirectory = value
+		os.Chdir(workingDirectory)
+	}
+
+
+	var f *os.File
+	f, _ = os.Open(img)
+	defer f.Close()
+	reader := bufio.NewReader(f)
+	content, _ := ioutil.ReadAll(reader)
+	encoded := base64.StdEncoding.EncodeToString(content)
+	os.Chdir(workingDirectory)
+
+	return "data:image/jpg;base64," + encoded, nil
+}
+
 
 func (t *totpUsecase) GenereateTotpSecret(context context.Context, user string) (*otp.Key, error){
 	t.logger.Logger.Infof("generating totp secret for user %v\n", user)
