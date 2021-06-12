@@ -4,8 +4,10 @@ import (
 	"auth-service/infrastructure/tracer"
 	"context"
 	"fmt"
+	"github.com/casbin/casbin/v2"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	logger "github.com/jelena-vlajkov/logger/logger"
 	"net/http"
 	"os"
 	"strings"
@@ -27,6 +29,66 @@ func CORSMiddleware() gin.HandlerFunc {
 	}
 }
 
+func AuthMiddleware(logger *logger.Logger) gin.HandlerFunc {
+	return func (c *gin.Context) {
+		role, err := ExtractUserRole(context.Background(), c.Request, logger)
+		if err != nil {
+			logger.Logger.Warnf("unauthorized request from IP address: %v", c.Request.Host)
+			c.JSON(401, gin.H{"message" : "Unauthorized"})
+			c.Abort()
+			return
+		}
+
+		if role == "" {
+			logger.Logger.Warnf("unauthorized request from IP address: %v", c.Request.Host)
+			c.JSON(401, gin.H{"message" : "Unauthorized"})
+			c.Abort()
+			return
+		}
+
+		ok, err := enforce(role, c.Request.URL.Path, c.Request.Method, logger)
+
+		if err != nil {
+			c.JSON(500, gin.H{"message" : "error occurred when authorizing user"})
+			c.Abort()
+			return
+		}
+
+		if !ok {
+			logger.Logger.Errorf("forbidden request from IP address: %v", c.Request.Referer())
+			c.JSON(403, gin.H{"message" : "forbidden"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+
+func enforce(role string, obj string, act string, logger *logger.Logger) (bool, error) {
+	m, _ := os.Getwd()
+	fmt.Println(m)
+
+	if !strings.HasSuffix(m, "src")  {
+		splits := strings.Split(m, "src")
+		wd := splits[0] + "/src"
+		fmt.Println(wd)
+		os.Chdir(wd)
+	}
+	enforcer, err := casbin.NewEnforcer("http/middleware/rbac_model.conf", "http/middleware/rbac_policy.csv")
+	if err != nil {
+		logger.Logger.Errorf("failed to load policy from file: %v", err)
+		return false, fmt.Errorf("failed to load policy from DB: %w", err)
+	}
+	err = enforcer.LoadPolicy()
+	if err != nil {
+		logger.Logger.Errorf("failed to load policy from file: %v", err)
+		return false, fmt.Errorf("failed to load policy from DB: %w", err)
+	}
+	ok, _ := enforcer.Enforce(role, obj, act)
+	return ok, nil
+}
+
 func GetTokenId(ctx context.Context, request *http.Request) *string {
 	span := tracer.StartSpanFromContext(ctx, "middleware/GetTokenId")
 	defer span.Finish()
@@ -36,10 +98,7 @@ func GetTokenId(ctx context.Context, request *http.Request) *string {
 		return nil
 	}
 
-
-
 	return &authHeader
-
 }
 
 func ExtractToken(ctx context.Context, r *http.Request) string {
@@ -168,13 +227,16 @@ func ExtractTokenUuid(ctx context.Context, r *http.Request) (string, error) {
 	}
 	return "", err
 }
-func ExtractUserRole(ctx context.Context, r *http.Request) (string, error) {
+func ExtractUserRole(ctx context.Context, r *http.Request, logger *logger.Logger) (string, error) {
 	span := tracer.StartSpanFromContext(ctx, "middleware/ExtractUserRole")
 	defer span.Finish()
 
 	ctx1 := tracer.ContextWithSpan(ctx, span)
 
 	tokenString := ExtractToken(ctx1, r)
+	if tokenString == "" {
+		return "ANONYMOUS", nil
+	}
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return []byte(os.Getenv("ACCESS_SECRET")), nil
@@ -185,10 +247,10 @@ func ExtractUserRole(ctx context.Context, r *http.Request) (string, error) {
 	if ok  {
 		userId, ok := claims["role"].(string)
 		if !ok {
-			return "", err
+			return "ANONYMOUS", err
 		}
 
-		return userId, nil
+		return strings.ToUpper(userId), nil
 	}
-	return "", err
+	return  "ANONYMOUS", err
 }

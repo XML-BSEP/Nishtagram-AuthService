@@ -9,22 +9,21 @@ import (
 	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	logger "github.com/jelena-vlajkov/logger/logger"
 	"time"
 )
 
 func main() {
 
-
-	postgreConn := postgresqldb.NewDBConnection()
-
-
+	logger := logger.InitializeLogger("auth-service", context.Background())
+	postgreConn := postgresqldb.NewDBConnection(logger)
 
 	seeder.SeedData(postgreConn)
 
-	interactor := interactor2.NewInteractor(postgreConn)
+	interactor := interactor2.NewInteractor(postgreConn, logger)
 	appHandler := interactor.NewAppHandler()
 
-	router := router2.NewRouter(appHandler)
+	router := router2.NewRouter(appHandler, logger)
 	router.Use(gin.Logger())
 	router.Use(middleware.CORSMiddleware())
 
@@ -34,6 +33,6 @@ func main() {
 	fmt.Println(value)
 
 
-
-	router.RunTLS(":8091", "certificate/cert.pem", "certificate/key.pem")
+	logger.Logger.Info("server auth-service listening on port 8091")
+	router.RunTLS(":8091", "src/certificate/cert.pem", "src/certificate/key.pem")
 }

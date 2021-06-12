@@ -12,6 +12,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	logger "github.com/jelena-vlajkov/logger/logger"
 	"strings"
 	"time"
 	"unicode"
@@ -38,6 +39,7 @@ type authenticateHandler struct {
 	TotpUsecase           usecase.TotpUsecase
 	Tracer                opentracing.Tracer
 	RedisUsecase          usecase.RedisUsecase
+	logger *logger.Logger
 }
 
 type AuthenticationHandler interface {
@@ -50,13 +52,13 @@ type AuthenticationHandler interface {
 	ResetPassword(ctx *gin.Context)
 }
 
-func NewAuthenticationHandler(authUsecase usecase.AuthenticationUsecase, jwtUSecase usecase.JwtUsecase, profileInfoUsecase usecase.ProfileInfoUsecase, tracer opentracing.Tracer, redis usecase.RedisUsecase, totpUsecase usecase.TotpUsecase) AuthenticationHandler {
-	return &authenticateHandler{authUsecase, jwtUSecase, profileInfoUsecase, totpUsecase, tracer, redis}
+func NewAuthenticationHandler(authUsecase usecase.AuthenticationUsecase, jwtUSecase usecase.JwtUsecase, profileInfoUsecase usecase.ProfileInfoUsecase, tracer opentracing.Tracer, redis usecase.RedisUsecase, totpUsecase usecase.TotpUsecase, logger *logger.Logger) AuthenticationHandler {
+	return &authenticateHandler{authUsecase, jwtUSecase, profileInfoUsecase, totpUsecase, tracer, redis, logger}
 
 }
 
 func (a *authenticateHandler) Login(ctx *gin.Context) {
-
+	a.logger.Logger.Println("Handling LOGIN")
 	span := tracer.StartSpanFromRequest("Login", a.Tracer, ctx.Request)
 	defer span.Finish()
 	a.logMetadata(span, ctx)
@@ -65,6 +67,7 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 	decoder := json.NewDecoder(ctx.Request.Body)
 
 	if err := decoder.Decode(&authenticationDto); err != nil {
+		a.logger.Logger.Errorf("error while decoding json, error: %v\n", err)
 		tracer.LogError(span, fmt.Errorf("message=%s; err=%s\n", body_decoding_err, err))
 		ctx.JSON(400, gin.H{"message": body_decoding_err})
 		ctx.Abort()
@@ -76,6 +79,8 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 	authenticationDto.Password = strings.TrimSpace(policy.Sanitize(authenticationDto.Password))
 
 	if authenticationDto.Password == " " || authenticationDto.Username == " " {
+		a.logger.Logger.Error("error while login, error: fields are empty")
+		a.logger.Logger.Warnf("possible xss attack from IP address %v\n", ctx.Request.Host)
 		ctx.JSON(400, gin.H{"message": "Field are empty or xss attack happened"})
 		return
 	}
@@ -85,6 +90,7 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 	ctx1 := tracer.ContextWithSpan(ctx, span)
 	profileInfo, err := a.ProfileInfoUsecase.GetProfileInfoByUsername(ctx1, authenticationDto.Username)
 	if err != nil {
+		a.logger.Logger.Errorf("error while getting profile info by for email %v, error: %v\n", authenticationDto.Username, err)
 		tracer.LogError(span, fmt.Errorf("message=%s", invalid_credentials_err))
 		ctx.JSON(400, gin.H{"message": invalid_credentials_err})
 		ctx.Abort()
@@ -93,6 +99,7 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 
 	span.LogFields(tracer.LogString("handler", fmt.Sprintf("username= %s; user_id= %s", profileInfo.Username, profileInfo.ID)))
 	if err := usecase.VerifyPassword(ctx1, authenticationDto.Password, profileInfo.Password); err != nil {
+		a.logger.Logger.Warnf("invalid password for user %v from IP address %v, error: %v\n", authenticationDto.Username, ctx.Request.Host, err)
 		ctx.JSON(400, gin.H{"message": invalid_credentials_err})
 		ctx.Abort()
 		return
@@ -103,6 +110,7 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 	if err == nil {
 		userInfo, err := a.CreateTemporaryToken(ctx1, profileInfo)
 		if err != nil {
+			a.logger.Logger.Errorf("error while getting temporary user token for %v, error: %v\n", profileInfo.ID, err)
 			tracer.LogError(span, err)
 			ctx.JSON(400, gin.H{"message": "Can not create temporary code"})
 			return
@@ -115,6 +123,7 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 	val, err := a.generateToken(ctx1, profileInfo)
 
 	if err != nil {
+		a.logger.Logger.Errorf("error while generating token for %v, error: %v\n", profileInfo.ID, err)
 		ctx.JSON(400, gin.H{"message": token_err})
 		ctx.Abort()
 		return
@@ -139,11 +148,13 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 }
 
 func (a *authenticateHandler) ValidateToken(ctx *gin.Context) {
+	a.logger.Logger.Println("Handling VALIDATING TOKEN")
 	var tokenDto dto.TokenDto
 
 	decoder := json.NewDecoder(ctx.Request.Body)
 
 	if err := decoder.Decode(&tokenDto); err != nil {
+		a.logger.Logger.Errorf("error while decoding json, error: %v\n", err)
 		ctx.JSON(400, gin.H{"message": "Token decoding error"})
 		ctx.Abort()
 		return
@@ -155,6 +166,7 @@ func (a *authenticateHandler) ValidateToken(ctx *gin.Context) {
 	at, err := a.AuthenticationUsecase.FetchAuthToken(ctx, tokenDto.TokenId)
 
 	if err != nil {
+		a.logger.Logger.Errorf("error while fetching token, error: %v\n", err)
 		ctx.JSON(401, gin.H{"message": "Invalid token"})
 		ctx.Abort()
 		return
@@ -162,6 +174,7 @@ func (a *authenticateHandler) ValidateToken(ctx *gin.Context) {
 
 	token, err := a.JwtUsecase.ValidateToken(ctx, string(at))
 	if err != nil || token == "" {
+		a.logger.Logger.Errorf("error while validating token, error: %v\n", err)
 		ctx.JSON(401, gin.H{"message": "Invalid token"})
 		ctx.Abort()
 		return
@@ -172,17 +185,20 @@ func (a *authenticateHandler) ValidateToken(ctx *gin.Context) {
 }
 
 func (a *authenticateHandler) Logout(ctx *gin.Context) {
+	a.logger.Logger.Println("Handling LOGOUT")
 	var tokenDto dto.TokenDto
 
 	decoder := json.NewDecoder(ctx.Request.Body)
 
 	if err := decoder.Decode(&tokenDto); err != nil {
+		a.logger.Logger.Errorf("error while decoding json, error: %v\n", err)
 		ctx.JSON(400, gin.H{"message": "Token decoding error"})
 		ctx.Abort()
 		return
 	}
 
 	if err := a.AuthenticationUsecase.DeleteAuthToken(ctx, tokenDto.TokenId); err != nil {
+		a.logger.Logger.Errorf("error while deleting auth token, error: %v\n", err)
 		ctx.JSON(400, gin.H{"message": "Token deleting error"})
 		ctx.Abort()
 		return
@@ -192,6 +208,7 @@ func (a *authenticateHandler) Logout(ctx *gin.Context) {
 }
 
 func (a *authenticateHandler) ResetPassword(ctx *gin.Context) {
+	a.logger.Logger.Println("Handling RESET PASSWORD")
 	decoder := json.NewDecoder(ctx.Request.Body)
 
 	var resetDto dto.ResetPassDTO
@@ -205,11 +222,13 @@ func (a *authenticateHandler) ResetPassword(ctx *gin.Context) {
 	resetDto.VerificationCode = strings.TrimSpace(policy.Sanitize(resetDto.VerificationCode))
 
 	if err != nil {
+		a.logger.Logger.Errorf("error while decoding json, error: %v\n", err)
 		ctx.JSON(400, gin.H{"message": "Decoding error"})
 		return
 	}
 
 	if pasval1, pasval2, pasval3, pasval4 := verifyAuthPassword(resetDto.Password); pasval1 == false || pasval2 == false || pasval3 == false || pasval4 == false {
+		a.logger.Logger.Error("error while verifying password, password is not matching pattern")
 		ctx.JSON(400, gin.H{"message": "Password must have minimum 1 uppercase letter, 1 lowercase letter, 1 digit and 1 special character and needs to be minimum 8 characters long"})
 		return
 	}
@@ -217,6 +236,7 @@ func (a *authenticateHandler) ResetPassword(ctx *gin.Context) {
 	errorMessage := a.ProfileInfoUsecase.ResetPassword(ctx, resetDto)
 
 	if errorMessage != "" {
+		a.logger.Logger.Error(errorMessage)
 		ctx.JSON(400, gin.H{"message": errorMessage})
 		return
 	}
@@ -226,6 +246,7 @@ func (a *authenticateHandler) ResetPassword(ctx *gin.Context) {
 }
 
 func (r *authenticateHandler) SendResetMail(ctx *gin.Context) {
+	r.logger.Logger.Println("Handling SENDING RESET MAIL")
 	decoder := json.NewDecoder(ctx.Request.Body)
 
 	type Email struct {
@@ -239,12 +260,14 @@ func (r *authenticateHandler) SendResetMail(ctx *gin.Context) {
 	req.Email = strings.TrimSpace(policy.Sanitize(req.Email))
 
 	if err != nil {
+		r.logger.Logger.Errorf("error while decoding json, error: %v\n", err)
 		ctx.JSON(400, gin.H{"message": "Error decoding email"})
 		return
 	}
 
 	exists := r.ProfileInfoUsecase.ExistsByUsernameOrEmail(ctx, "", req.Email)
 	if !exists {
+		r.logger.Logger.Errorf("error while sending reset mail, error: no user with email %v\n", req.Email)
 		ctx.JSON(400, gin.H{"message": "User does not exist"})
 		return
 	}
@@ -263,6 +286,7 @@ func (r *authenticateHandler) SendResetMail(ctx *gin.Context) {
 
 	err = r.RedisUsecase.AddKeyValueSet(ctx, redisKey, hash, time.Duration(expiration))
 	if err != nil {
+		r.logger.Logger.Errorf("error while adding token to redis, error: %v\n", err)
 		ctx.JSON(500, gin.H{"message": "Error"})
 		return
 	}
@@ -277,6 +301,7 @@ func (a *authenticateHandler) Login1(ctx *gin.Context) {
 }
 
 func (a *authenticateHandler) CreateTemporaryToken(ctx context.Context, profileInfo domain.ProfileInfo) (*dto.AuthenticatedUserInfoDto, error) {
+	a.logger.Logger.Println("Handling CREATING TEMPORARY TOKEN")
 	span := tracer.StartSpanFromContext(ctx, "handler/createTemporaryToken")
 	defer span.Finish()
 
@@ -285,6 +310,7 @@ func (a *authenticateHandler) CreateTemporaryToken(ctx context.Context, profileI
 	temporaryToken, err := a.JwtUsecase.CreateTemporaryToken(ctx1, profileInfo.Role.RoleName, profileInfo.ID)
 
 	if err != nil {
+		a.logger.Logger.Errorf("error while creating temporary token, error: %v\n", err)
 		tracer.LogError(span, err)
 		return nil, err
 	}
@@ -296,6 +322,7 @@ func (a *authenticateHandler) CreateTemporaryToken(ctx context.Context, profileI
 	}
 
 	if err := a.AuthenticationUsecase.SaveTemporaryToken(ctx1, temporaryToken); err != nil {
+		a.logger.Logger.Errorf("error while saving temporary token, error %v\n", err)
 		tracer.LogError(span, err)
 		return nil, err
 	}
@@ -304,6 +331,7 @@ func (a *authenticateHandler) CreateTemporaryToken(ctx context.Context, profileI
 }
 
 func (a *authenticateHandler) Validate(ctx *gin.Context) {
+	a.logger.Logger.Println("Handling VALIDATING TOTP")
 	span := tracer.StartSpanFromRequest("handler", a.Tracer, ctx.Request)
 	defer span.Finish()
 	a.logMetadata(span, ctx)
@@ -312,6 +340,7 @@ func (a *authenticateHandler) Validate(ctx *gin.Context) {
 
 	var totpSecretDto dto.TotpValidationDto
 	if err := decoder.Decode(&totpSecretDto); err != nil {
+		a.logger.Logger.Errorf("error while decoding json, error: %v\n", err)
 		tracer.LogError(span, fmt.Errorf("message=%s; err=%s\n", body_decoding_err, err))
 		ctx.JSON(400, gin.H{"message": body_decoding_err})
 		return
@@ -321,12 +350,14 @@ func (a *authenticateHandler) Validate(ctx *gin.Context) {
 	userId, err := middleware.ExtractUserId(ctx1, ctx.Request)
 
 	if err != nil {
+		a.logger.Logger.Errorf("error while extracting user from token, error: %v\n", err)
 		tracer.LogError(span, fmt.Errorf("message=%s; err=%s\n", token_invalid, err))
 		ctx.JSON(400, gin.H{"message": token_invalid})
 		return
 	}
 
 	if !a.TotpUsecase.Validate(ctx1, userId, totpSecretDto.Passcode) {
+		a.logger.Logger.Error("error while validating totp passcode, error: passcode not valid")
 		tracer.LogError(span, fmt.Errorf("message= %s", totp_validation_error))
 		ctx.JSON(400, gin.H{"message": totp_validation_error})
 		return
@@ -336,6 +367,7 @@ func (a *authenticateHandler) Validate(ctx *gin.Context) {
 	val, err := a.generateToken(ctx1, *profileInfo)
 
 	if err != nil {
+		a.logger.Logger.Errorf("error while generating token, error: %v\n", err)
 		ctx.JSON(400, gin.H{"message": token_err})
 		ctx.Abort()
 		return
@@ -343,6 +375,7 @@ func (a *authenticateHandler) Validate(ctx *gin.Context) {
 
 	tokenUuid, err := middleware.ExtractTokenUuid(ctx1, ctx.Request)
 	if err := a.AuthenticationUsecase.DeleteTemporaryToken(ctx1, tokenUuid); err != nil {
+		a.logger.Logger.Errorf("error while extracting token uuid, error: %v\n", err)
 		tracer.LogError(span, fmt.Errorf("message= %s", totp_validation_error))
 		ctx.JSON(400, gin.H{"message": totp_validation_error})
 		return
@@ -353,6 +386,7 @@ func (a *authenticateHandler) Validate(ctx *gin.Context) {
 }
 
 func (a *authenticateHandler) generateToken(ctx context.Context, profileInfo domain.ProfileInfo) (*dto.AuthenticatedUserInfoDto, error) {
+	a.logger.Logger.Println("Handling GENERATING TOKEN")
 	span := tracer.StartSpanFromContext(ctx, "handler/generateToken")
 	defer span.Finish()
 
@@ -360,6 +394,7 @@ func (a *authenticateHandler) generateToken(ctx context.Context, profileInfo dom
 
 	token, err := a.JwtUsecase.CreateToken(ctx1, profileInfo.Role.RoleName, profileInfo.ID)
 	if err != nil {
+		a.logger.Logger.Errorf("error while creating token, error: %v\n", err)
 		return nil, err
 	}
 	authenticatedUserInfo := dto.AuthenticatedUserInfoDto{
@@ -373,6 +408,7 @@ func (a *authenticateHandler) generateToken(ctx context.Context, profileInfo dom
 }
 
 func (a *authenticateHandler) ValidateTemporaryToken(ctx *gin.Context) {
+	a.logger.Logger.Println("Handling VALIDATING TEMPORARY TOKEN")
 	span := tracer.StartSpanFromContext(ctx, "handler/ValidateTemporaryToken")
 	defer span.Finish()
 
@@ -381,6 +417,7 @@ func (a *authenticateHandler) ValidateTemporaryToken(ctx *gin.Context) {
 	decoder := json.NewDecoder(ctx.Request.Body)
 
 	if err := decoder.Decode(&tokenDto); err != nil {
+		a.logger.Logger.Errorf("error while decoding json, error: %v\n", err)
 		ctx.JSON(400, gin.H{"message": "Token decoding error"})
 		ctx.Abort()
 		return
@@ -389,6 +426,7 @@ func (a *authenticateHandler) ValidateTemporaryToken(ctx *gin.Context) {
 	at, err := a.AuthenticationUsecase.FetchTemporaryToken(ctx, tokenDto.TokenId)
 
 	if err != nil {
+		a.logger.Logger.Errorf("error while fetch temporary token, error: %v\n", err)
 		ctx.JSON(401, gin.H{"message": "Invalid token"})
 		ctx.Abort()
 		return
@@ -396,6 +434,7 @@ func (a *authenticateHandler) ValidateTemporaryToken(ctx *gin.Context) {
 
 	token, err := a.JwtUsecase.ValidateToken(ctx, string(at))
 	if err != nil || token == "" {
+		a.logger.Logger.Errorf("error while validating token, error: %v\n", err)
 		ctx.JSON(401, gin.H{"message": "Invalid token"})
 		ctx.Abort()
 		return

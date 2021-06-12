@@ -4,10 +4,16 @@ import (
 	"auth-service/domain"
 	"auth-service/infrastructure/tracer"
 	"auth-service/repository"
+	"bufio"
 	"context"
+	"encoding/base64"
+	logger "github.com/jelena-vlajkov/logger/logger"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"image"
+	"io/ioutil"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -20,6 +26,7 @@ const (
 type totpUsecase struct {
 	TotpRepository repository.TotpRepository
 	RedisUsecase RedisUsecase
+	logger *logger.Logger
 }
 
 type TotpUsecase interface {
@@ -32,13 +39,39 @@ type TotpUsecase interface {
 	GetSecretByProfileInfoId(context context.Context, profileInfoId string) (*string, error)
 	DeleteSecretByProfileId(context context.Context, profileInfoId string) error
 	Validate(context context.Context, profileInfoId, passcode string) bool
+	Base64Image(context context.Context, img string) (string, error)
 }
 
-func NewTotpUsecase(repository repository.TotpRepository, redisUsecase RedisUsecase, profileInfoUsecase ProfileInfoUsecase) TotpUsecase {
-	return &totpUsecase{TotpRepository: repository, RedisUsecase: redisUsecase}
+func NewTotpUsecase(repository repository.TotpRepository, redisUsecase RedisUsecase, profileInfoUsecase ProfileInfoUsecase, logger *logger.Logger) TotpUsecase {
+	return &totpUsecase{TotpRepository: repository, RedisUsecase: redisUsecase, logger: logger}
 }
+
+
+func (t *totpUsecase) Base64Image(context context.Context, img string) (string, error) {
+	t.logger.Logger.Infof("decoding base64 for qrcode\n")
+	workingDirectory, _ := os.Getwd()
+	if !strings.HasSuffix(workingDirectory, "src") {
+		firstPart := strings.Split(workingDirectory, "src")
+		value := firstPart[0] + "/src"
+		workingDirectory = value
+		os.Chdir(workingDirectory)
+	}
+
+
+	var f *os.File
+	f, _ = os.Open(img)
+	defer f.Close()
+	reader := bufio.NewReader(f)
+	content, _ := ioutil.ReadAll(reader)
+	encoded := base64.StdEncoding.EncodeToString(content)
+	os.Chdir(workingDirectory)
+
+	return "data:image/jpg;base64," + encoded, nil
+}
+
 
 func (t *totpUsecase) GenereateTotpSecret(context context.Context, user string) (*otp.Key, error){
+	t.logger.Logger.Infof("generating totp secret for user %v\n", user)
 	span := tracer.StartSpanFromContext(context, "usecase/GenereateTotpSecret")
 	defer span.Finish()
 
@@ -49,6 +82,7 @@ func (t *totpUsecase) GenereateTotpSecret(context context.Context, user string) 
 	key, err := totp.Generate(options)
 
 	if err != nil {
+		t.logger.Logger.Errorf("error while generating secret, error %v\n", err)
 		tracer.LogError(span, err)
 		return nil, err
 	}
@@ -57,6 +91,7 @@ func (t *totpUsecase) GenereateTotpSecret(context context.Context, user string) 
 }
 
 func (t *totpUsecase) GetSecretString(context context.Context, key *otp.Key) string {
+	t.logger.Logger.Infof("getting secret by key")
 	span := tracer.StartSpanFromContext(context, "usecase/GetSecretString")
 	defer span.Finish()
 
@@ -64,12 +99,14 @@ func (t *totpUsecase) GetSecretString(context context.Context, key *otp.Key) str
 }
 
 func (t *totpUsecase) GetSecretImage(context context.Context, key *otp.Key, width, height int) (*image.Image, error) {
+	t.logger.Logger.Infof("getting secret image for user")
 	span := tracer.StartSpanFromContext(context, "usecase/GetSecretImage")
 	defer span.Finish()
 
 	img, err := key.Image(width, height)
 
 	if err != nil {
+		t.logger.Logger.Errorf("error while getting secret image, error %v\n", err)
 		tracer.LogError(span, err)
 		return nil, err
 	}
@@ -78,6 +115,7 @@ func (t *totpUsecase) GetSecretImage(context context.Context, key *otp.Key, widt
 }
 
 func (t *totpUsecase) Verify(context context.Context, passcode, userId string) bool {
+	t.logger.Logger.Infof("verifying totp for user %v\n", userId)
 	span := tracer.StartSpanFromContext(context, "usecase/Validate")
 	defer span.Finish()
 
@@ -96,6 +134,7 @@ func (t *totpUsecase) Verify(context context.Context, passcode, userId string) b
 
 
 func (t *totpUsecase) SaveSecretTemporarily(context context.Context, userId, secret string) error {
+	t.logger.Logger.Infof("saving temporarily secret for user %v\n", userId)
 	span := tracer.StartSpanFromContext(context, "usecase/SaveSecretTemporarily")
 	defer span.Finish()
 
@@ -110,6 +149,7 @@ func (t *totpUsecase) SaveSecretTemporarily(context context.Context, userId, sec
 }
 
 func (t *totpUsecase) SaveSecret(context context.Context, userId string) error {
+	t.logger.Logger.Infof("saving secret for user %v\n", userId)
 	span := tracer.StartSpanFromContext(context, "usecase/SaveSecret")
 	defer span.Finish()
 
@@ -141,6 +181,7 @@ func (t *totpUsecase) SaveSecret(context context.Context, userId string) error {
 
 
 func (t *totpUsecase) GetSecretByProfileInfoId(context context.Context, profileInfoId string) (*string, error) {
+	t.logger.Logger.Infof("getting secret by profile info %v\n", profileInfoId)
 	span := tracer.StartSpanFromContext(context, "usecase/GetSecretByProfileInfoId")
 	defer span.Finish()
 
@@ -157,6 +198,7 @@ func (t *totpUsecase) GetSecretByProfileInfoId(context context.Context, profileI
 }
 
 func (t *totpUsecase) DeleteSecretByProfileId(context context.Context, profileInfoId string) error {
+	t.logger.Logger.Infof("deleting secret by profile id %v\n", profileInfoId)
 	span := tracer.StartSpanFromContext(context, "usecase/DeleteSecretByProfileId")
 	defer span.Finish()
 
@@ -171,6 +213,7 @@ func (t *totpUsecase) DeleteSecretByProfileId(context context.Context, profileIn
 }
 
 func (t *totpUsecase) Validate(context context.Context, profileInfoId, passcode string) bool {
+	t.logger.Logger.Infof("validating totp passcode for user %v\n", profileInfoId)
 	span := tracer.StartSpanFromContext(context, "usecase/Validate")
 	defer span.Finish()
 

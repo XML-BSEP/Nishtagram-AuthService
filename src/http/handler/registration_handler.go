@@ -7,6 +7,7 @@ import (
 	"auth-service/usecase"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	logger "github.com/jelena-vlajkov/logger/logger"
 	"github.com/microcosm-cc/bluemonday"
 	"net/http"
 	"strings"
@@ -15,6 +16,7 @@ import (
 
 type registrationHandler struct {
 	RegistrationUsecase usecase.RegistrationUsecase
+	logger *logger.Logger
 
 }
 
@@ -24,15 +26,16 @@ type RegistrationHandler interface {
 	ResendCode(ctx *gin.Context)
 }
 
-func NewRegistrationHandler(registrationUsecase usecase.RegistrationUsecase) RegistrationHandler {
-	return &registrationHandler{RegistrationUsecase: registrationUsecase}
+func NewRegistrationHandler(registrationUsecase usecase.RegistrationUsecase, logger *logger.Logger) RegistrationHandler {
+	return &registrationHandler{RegistrationUsecase: registrationUsecase, logger: logger}
 }
 
 func (r *registrationHandler) Register(ctx *gin.Context) {
-
+	r.logger.Logger.Println("Handling REGISTER USER")
 	decoder := json.NewDecoder(ctx.Request.Body)
 	var user domain.User
 	if err := decoder.Decode(&user); err != nil {
+		r.logger.Logger.Errorf("error while decoding json, error: %v\n", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message" : "Error decoding json"})
 		return
 	}
@@ -56,6 +59,8 @@ func (r *registrationHandler) Register(ctx *gin.Context) {
 
 	if user.Name == "" || user.Surname == "" || user.Email == "" || user.Address == "" || user.Phone == "" || user.Birthday  == "" ||
 		user.Gender == "" || user.Web == "" || user.Bio  == "" || user.Username == "" || user.Password == ""{
+		r.logger.Logger.Errorf("error while verifying and validating registration fields\n")
+		r.logger.Logger.Warnf("possible xss attack from IP address: %v\n", ctx.Request.Host)
 		ctx.JSON(400, gin.H{"message" : "Fields are empty or xss attack happened"})
 		return
 	}
@@ -67,32 +72,38 @@ func (r *registrationHandler) Register(ctx *gin.Context) {
 	errorsString := customValidator.GetErrorsString(errs)
 
 	if errValidation != nil {
+		r.logger.Logger.Errorf("error while validating fields, error: %v\n", errorsString[0])
 		ctx.JSON(400, gin.H{"message" : errorsString[0]})
 		return
 	}
 
 	if pasval1, pasval2, pasval3, pasval4 := verifyPassword(user.Password); pasval1 == false || pasval2 == false || pasval3 == false || pasval4 == false {
+		r.logger.Logger.Errorf("error while veryfing password, error: password not matching pattern")
 		ctx.JSON(400, gin.H{"message" : "Password must have minimum 1 uppercase letter, 1 lowercase letter, 1 digit and 1 special character and needs to be minimum 8 characters long"})
 		return
 	}
 
 
 	if user.Birthday == "" {
+		r.logger.Logger.Errorf("error while registrating user, error: no birthday")
 		ctx.JSON(400, gin.H{"message" : "Enter birthday!"})
 		return
 	}
 
 	if strings.Contains(user.Username, " ") {
+		r.logger.Logger.Errorf("error while registrating user, error: username not in valid format")
 		ctx.JSON(400, gin.H{"message" : "Username is not in valid format!"})
 		return
 	}
 
 
 	if r.RegistrationUsecase.IsAlreadyRegistered(ctx, user.Username, user.Email) {
+		r.logger.Logger.Errorf("error while registrating user, error: user already exists")
 		ctx.JSON(402, gin.H{"message" : "User already exists"})
 		return
 	}
 	if err := r.RegistrationUsecase.Register(ctx, user); err != nil {
+		r.logger.Logger.Errorf("error while registrating user, error: %v\n", err)
 		ctx.JSON(402, gin.H{"message" : err.Error()})
 	}
 
@@ -100,9 +111,11 @@ func (r *registrationHandler) Register(ctx *gin.Context) {
 }
 
 func (r *registrationHandler) ConfirmAccount(ctx *gin.Context) {
+	r.logger.Logger.Println("Handling CONFIRMING ACCOUNT")
 	decoder := json.NewDecoder(ctx.Request.Body)
 	var dto dto.AccountConfirmationDto
 	if err := decoder.Decode(&dto); err != nil {
+		r.logger.Logger.Errorf("error while decoding json, error: %v\n", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message" : "Error decoding json"})
 		return
 	}
@@ -114,6 +127,8 @@ func (r *registrationHandler) ConfirmAccount(ctx *gin.Context) {
 	dto.Code = strings.TrimSpace(policy.Sanitize(dto.Code))
 
 	if dto.Code == "" || dto.Email == ""{
+		r.logger.Logger.Errorf("error while verifying and validating registration fields\n")
+		r.logger.Logger.Warnf("possible xss attack from IP address: %v\n", ctx.Request.Host)
 		ctx.JSON(400, gin.H{"message" : "Field are empty or xss attack happened"})
 		return
 	}
@@ -124,13 +139,12 @@ func (r *registrationHandler) ConfirmAccount(ctx *gin.Context) {
 	}
 
 
-
-
 	ctx.JSON(http.StatusOK, gin.H{"message" : "Registration successful"})
 	return
 }
 
 func (r *registrationHandler) ResendCode(ctx *gin.Context) {
+	r.logger.Logger.Println("Handling RESEND CODE")
 	decoder := json.NewDecoder(ctx.Request.Body)
 
 	type Email struct {
@@ -145,6 +159,8 @@ func (r *registrationHandler) ResendCode(ctx *gin.Context) {
 	email := strings.TrimSpace(policy.Sanitize(req.Email))
 
 	if err != nil {
+		r.logger.Logger.Errorf("error while verifying and validating registration fields, error: %v\n", err)
+		r.logger.Logger.Warnf("possible xss attack from IP address: %v\n", ctx.Request.Host)
 		ctx.JSON(400, gin.H{"message" : "Field are empty or xss attack happened"})
 		return
 	}
