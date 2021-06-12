@@ -52,6 +52,7 @@ type AuthenticationHandler interface {
 	SendResetMail(ctx *gin.Context)
 	ResetPassword(ctx *gin.Context)
 	RefreshToken(ctx *gin.Context)
+
 }
 
 func NewAuthenticationHandler(authUsecase usecase.AuthenticationUsecase, jwtUSecase usecase.JwtUsecase, profileInfoUsecase usecase.ProfileInfoUsecase, tracer opentracing.Tracer, redis usecase.RedisUsecase, totpUsecase usecase.TotpUsecase, logger *logger.Logger) AuthenticationHandler {
@@ -523,7 +524,16 @@ func (a *authenticateHandler) RefreshToken(ctx *gin.Context) {
 		return
 	}
 
-	refreshTokenDto := dto.RefreshTokenDto{TokenUuid: *uuid, Token: *token}
+	err = a.JwtUsecase.DeleteRefreshToken(ctx1, tokenDto.TokenId)
 
+	if err != nil {
+		a.logger.Logger.Errorf("error while refreshing token, error: %v\n", err)
+		ctx.JSON(401, gin.H{"message": "Invalid token"})
+		return
+	}
+
+
+	refreshTokenDto := dto.RefreshTokenDto{TokenUuid: *uuid, Token: *token}
+	a.logger.Logger.Infof("token refreshed for token %v\n", string(rt))
 	ctx.JSON(200, refreshTokenDto)
 }

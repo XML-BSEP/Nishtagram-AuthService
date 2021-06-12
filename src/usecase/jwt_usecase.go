@@ -52,6 +52,15 @@ func (j *jwtUsecase) RefreshToken(context context.Context, tokenString string) (
 		tracer.LogError(span, err)
 		return nil, nil, err
 	}
+	exp, err := j.ExtractExpiration(ctx1, tokenString)
+
+	err = j.RedisUsecase.AddKeyValueSet(ctx1, refreshToken + td.TokenUuid, tokenString, exp.Sub(time.Now()))
+
+	if err != nil {
+		tracer.LogError(span, err)
+		return nil, nil, err
+	}
+
 	return &td.AccessToken, &td.TokenUuid, nil
 }
 
@@ -141,7 +150,9 @@ func (j *jwtUsecase) ExtractExpiration(context context.Context, tokenString stri
 
 	return nil, err
 }
-
+func (j *jwtUsecase) DeleteRefreshToken(context context.Context, tokenUuid string) error {
+	return j.RedisUsecase.DeleteValueByKey(context, refreshToken + tokenUuid)
+}
 type JwtUsecase interface {
 	CreateAccessToken(context context.Context, role string, userId string, td *domain.TokenDetails) (*domain.TokenDetails, error)
 	CreateTemporaryToken(context context.Context, role, userId string) (*domain.TemporaryTokenDetails, error)
@@ -151,6 +162,7 @@ type JwtUsecase interface {
 	ExtractExpiration(context context.Context, tokenString string) (*time.Time, error)
 	ExtractRole(context context.Context, tokenString string) (*string, error)
 	RefreshToken(context context.Context, tokenString string) (*string, *string, error)
+	DeleteRefreshToken(context context.Context, tokenUuid string) error
 }
 func NewJwtUsecase(usecase RedisUsecase, logger *logger.Logger, authUsecase AuthenticationUsecase) JwtUsecase {
 	return &jwtUsecase{RedisUsecase: usecase, logger: logger, AuthenticationUsecase: authUsecase}
@@ -163,7 +175,6 @@ func (j *jwtUsecase) CreateAccessToken(context context.Context, role string, use
 
 	td.AtExpires = time.Now().Add(time.Second * 20).Unix()
 	td.TokenUuid = uuid.NewV4().String()
-
 
 	var err error
 
@@ -256,7 +267,8 @@ func (j *jwtUsecase) CreateRefreshToken(context context.Context, userId, role st
 	defer span.Finish()
 
 	td.RtExpires = time.Now().Add(time.Hour * 24 * 7).Unix()
-	td.RefreshUuid = td.TokenUuid + "++" + uuid.NewV4().String()
+	td.RefreshUuid = td.TokenUuid
+
 
 	rtClaims := jwt.MapClaims{}
 	rtClaims["refresh_uuid"] = td.RefreshUuid
@@ -282,6 +294,9 @@ func (j *jwtUsecase) CreateToken(context context.Context, role, userId string, r
 
 	ctx1 := tracer.ContextWithSpan(context, span)
 	td := &domain.TokenDetails{}
+
+	_, err := j.CreateAccessToken(ctx1, role, userId, td)
+
 	if refresh {
 		_, err := j.CreateRefreshToken(ctx1, userId, role, td)
 		if err != nil {
@@ -294,8 +309,6 @@ func (j *jwtUsecase) CreateToken(context context.Context, role, userId string, r
 			return nil, err
 		}
 	}
-
-	_, err := j.CreateAccessToken(ctx1, role, userId, td)
 
 	if err != nil {
 		tracer.LogError(span, err)
