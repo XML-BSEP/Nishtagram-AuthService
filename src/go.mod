@@ -6,6 +6,7 @@ replace github.com/jelena-vlajkov/logger/logger => ../../Nishtagram-Logger/
 
 require (
 	github.com/HdrHistogram/hdrhistogram-go v1.1.0 // indirect
+	github.com/casbin/casbin/v2 v2.31.3 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-contrib/secure v0.0.1
 	github.com/gin-gonic/gin v1.7.2

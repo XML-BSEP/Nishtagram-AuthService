@@ -23,7 +23,7 @@ func main() {
 	interactor := interactor2.NewInteractor(postgreConn, logger)
 	appHandler := interactor.NewAppHandler()
 
-	router := router2.NewRouter(appHandler)
+	router := router2.NewRouter(appHandler, logger)
 	router.Use(gin.Logger())
 	router.Use(middleware.CORSMiddleware())
 

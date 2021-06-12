@@ -1,16 +1,19 @@
 package router
 
 import (
+	"auth-service/http/middleware"
 	"auth-service/interactor"
+	logger "github.com/jelena-vlajkov/logger/logger"
 
 	"github.com/gin-contrib/secure"
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(handler interactor.AppHandler) *gin.Engine {
+func NewRouter(handler interactor.AppHandler, logger *logger.Logger) *gin.Engine {
 	router := gin.Default()
 
 	router.Use(secure.New(secure.DefaultConfig()))
+	router.Use(middleware.AuthMiddleware(logger))
 
 	router.POST("/validateToken", handler.ValidateToken)
 	router.POST("/login", handler.Login)
