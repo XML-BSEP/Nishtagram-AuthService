@@ -6,7 +6,7 @@ replace github.com/jelena-vlajkov/logger/logger => ../../Nishtagram-Logger/
 
 require (
 	github.com/HdrHistogram/hdrhistogram-go v1.1.0 // indirect
-	github.com/casbin/casbin/v2 v2.31.3 // indirect
+	github.com/casbin/casbin/v2 v2.31.3
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-contrib/secure v0.0.1
 	github.com/gin-gonic/gin v1.7.2
@@ -23,8 +23,6 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/pkg/errors v0.8.1
 	github.com/pquerna/otp v1.3.0
-	github.com/sirupsen/logrus v1.8.1 // indirect
-	github.com/snowzach/rotatefilehook v0.0.0-20180327172521-2f64f265f58c // indirect
 	github.com/spf13/viper v1.7.1
 	github.com/twinj/uuid v1.0.0
 	github.com/uber/jaeger-client-go v2.29.1+incompatible

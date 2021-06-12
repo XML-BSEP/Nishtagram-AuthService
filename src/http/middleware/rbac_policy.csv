@@ -3,7 +3,8 @@ p, ANONYMOUS, /login, *
 p, ANONYMOUS, /register, *
 p, ANONYMOUS, /confirmAccount, *
 p, ANONYMOUS, /resendRegistrationCode, *
-p, USER, /logout, *
+p, ANONYMOUS, /logout, *
+p, ANONYMOUS, /refreshToken, *
 p, USER, /verifySecret, *
 p, ANONYMOUS, /isTotpEnabled, *
 p, USER, /isTotpEnabled, *

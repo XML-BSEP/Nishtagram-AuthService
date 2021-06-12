@@ -13,7 +13,7 @@ func NewDBConnection(logger *logger.Logger) *gorm.DB {
 }
 
 func init_viper(logger *logger.Logger) {
-	viper.SetConfigFile(`src/configurations/postgresql.json`)
+	viper.SetConfigFile(`configurations/postgresql.json`)
 	err := viper.ReadInConfig()
 	if err != nil {
 		logger.Logger.Infof("error while reading postgresql config file, error: %v\n", err)
