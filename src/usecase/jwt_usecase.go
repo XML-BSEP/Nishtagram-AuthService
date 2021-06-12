@@ -17,8 +17,10 @@ type jwtUsecase struct {
 	roleRepository repository.RoleRepository
 }
 
+
 type JwtUsecase interface {
 	CreateToken(context context.Context, role string, userId string) (*domain.TokenDetails, error)
+	CreateTemporaryToken(context context.Context, role, userId string) (*domain.TemporaryTokenDetails, error)
 	ValidateToken(context context.Context, tokenString string) (string,error)
 }
 func NewJwtUsecase(usecase RedisUsecase) JwtUsecase {
@@ -92,3 +94,33 @@ func verifyToken(tokenString string) (*jwt.Token, error) {
 
 	return token, nil
 }
+
+func (j *jwtUsecase) CreateTemporaryToken(context context.Context, role, userId string) (*domain.TemporaryTokenDetails, error) {
+	span := tracer.StartSpanFromContext(context, "CreateToken")
+	defer span.Finish()
+
+	td := &domain.TemporaryTokenDetails{}
+	td.Expires = time.Now().Add(time.Minute * 15).Unix()
+	td.TokenUuid = uuid.NewV4().String()
+
+	tokenClaims := jwt.MapClaims{}
+
+	tokenClaims["exp"] = td.Expires
+	tokenClaims["user_id"] = userId
+	tokenClaims["role"] = role
+	tokenClaims["token_uuid"] = td.TokenUuid
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, tokenClaims)
+
+	var err error
+
+	if err != nil {
+		tracer.LogError(span, err)
+		return nil, err
+	}
+
+	td.AccessToken, err = token.SignedString([]byte(os.Getenv("ACCESS_SECRET")))
+
+	return td, err
+}
+

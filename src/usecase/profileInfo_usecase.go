@@ -11,28 +11,29 @@ import (
 
 type profileInfoUsecase struct {
 	ProfileInfoRepository repository.ProfileInfoRepository
-	RedisUsecase RedisUsecase
+	RedisUsecase          RedisUsecase
 }
-const (
-	userNotFound = "user not found"
-	emailNotSent = "email not sent"
-	invalidCode = "invalidCode"
-	invalidPass = "password can't be the same as last one"
-	hashError = "error while hashing pass"
-	updateError = "error while updating user"
-	redisError = "error while deleting redis key"
-	passwordsError = "enter same passwords"
-	redisPassResetKeyPattern = "passwordResetRequest"
 
+const (
+	userNotFound             = "user not found"
+	emailNotSent             = "email not sent"
+	invalidCode              = "invalidCode"
+	invalidPass              = "password can't be the same as last one"
+	hashError                = "error while hashing pass"
+	updateError              = "error while updating user"
+	redisError               = "error while deleting redis key"
+	passwordsError           = "enter same passwords"
+	redisPassResetKeyPattern = "passwordResetRequest"
 )
+
 type ProfileInfoUsecase interface {
 	GetProfileInfoByUsername(context context.Context, username string) (domain.ProfileInfo, error)
 	GetProfileInfoByEmail(context context.Context, email string) (domain.ProfileInfo, error)
 
 	Create(context context.Context, profileInfo *domain.ProfileInfo) error
 	ExistsByUsernameOrEmail(context context.Context, username, email string) bool
+	GetProfileInfoById(context context.Context, id string) (*domain.ProfileInfo, error)
 	ResetPassword(ctx context.Context, dto dto.ResetPassDTO) string
-
 }
 
 func NewProfileInfoUsecase(p repository.ProfileInfoRepository, r RedisUsecase) ProfileInfoUsecase {
@@ -65,22 +66,22 @@ func (p *profileInfoUsecase) ResetPassword(ctx context.Context, dto dto.ResetPas
 		return passwordsError
 	}
 
-	exists := p.ExistsByUsernameOrEmail(ctx,"", dto.Email)
+	exists := p.ExistsByUsernameOrEmail(ctx, "", dto.Email)
 	if !exists {
 		return userNotFound
 	}
-	account, err := p.ProfileInfoRepository.GetProfileInfoByEmail(ctx,dto.Email)
+	account, err := p.ProfileInfoRepository.GetProfileInfoByEmail(ctx, dto.Email)
 	if err != nil {
 		return userNotFound
 	}
-	key :=redisPassResetKeyPattern + dto.Email
-	codeValue, err := p.RedisUsecase.GetValueByKey(ctx,key)
+	key := redisPassResetKeyPattern + dto.Email
+	codeValue, err := p.RedisUsecase.GetValueByKey(ctx, key)
 	if err != nil {
 		return emailNotSent
 	}
 
-	err = VerifyPassword(ctx,dto.VerificationCode, string(codeValue))
-		if err != nil {
+	err = VerifyPassword(ctx, dto.VerificationCode, string(codeValue))
+	if err != nil {
 		return invalidCode
 	}
 
@@ -91,7 +92,7 @@ func (p *profileInfoUsecase) ResetPassword(ctx context.Context, dto dto.ResetPas
 
 	newPass, err := helper.Hash(dto.Password)
 
-		if err != nil {
+	if err != nil {
 		return hashError
 	}
 
@@ -103,13 +104,13 @@ func (p *profileInfoUsecase) ResetPassword(ctx context.Context, dto dto.ResetPas
 		return updateError
 	}
 
-	err = p.RedisUsecase.DeleteValueByKey(ctx,key)
+	err = p.RedisUsecase.DeleteValueByKey(ctx, key)
 
 	if err != nil {
 		return redisError
 	}
 
-		return ""
+	return ""
 
 }
 
@@ -118,4 +119,12 @@ func (p *profileInfoUsecase) ExistsByUsernameOrEmail(context context.Context, us
 		return false
 	}
 	return true
+}
+
+func (p *profileInfoUsecase) GetProfileInfoById(context context.Context, id string) (*domain.ProfileInfo, error) {
+	span := tracer.StartSpanFromContext(context, "usecase/GetProfileInfoById")
+	defer span.Finish()
+
+	ctx1 := tracer.ContextWithSpan(context, span)
+	return p.ProfileInfoRepository.GetProfileInfoById(ctx1, id)
 }
