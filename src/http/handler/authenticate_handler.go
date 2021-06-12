@@ -28,11 +28,13 @@ type authenticateHandler struct {
 	Tracer opentracing.Tracer
 }
 
+
 type AuthenticationHandler interface {
 	Login(ctx *gin.Context)
 	ValidateToken(ctx *gin.Context)
 	Logout(ctx *gin.Context)
 	Validate(ctx *gin.Context)
+	ValidateTemporaryToken(ctx *gin.Context)
 }
 
 func NewAuthenticationHandler(authUsecase usecase.AuthenticationUsecase, jwtUSecase usecase.JwtUsecase, profileInfoUsecase usecase.ProfileInfoUsecase, totpUsecase usecase.TotpUsecase, tracer opentracing.Tracer) AuthenticationHandler {
@@ -221,6 +223,7 @@ func (a *authenticateHandler) Validate(ctx *gin.Context) {
 	if err != nil {
 		tracer.LogError(span, fmt.Errorf("message=%s; err=%s\n",token_invalid, err))
 		ctx.JSON(400, gin.H{"message" : token_invalid})
+		return
 	}
 
 	if !a.TotpUsecase.Validate(ctx1, userId, totpSecretDto.Passcode) {
@@ -267,6 +270,40 @@ func (a *authenticateHandler) generateToken(ctx context.Context, profileInfo dom
 	a.AuthenticationUsecase.SaveAuthToken(ctx1, 12, token)
 
 	return &authenticatedUserInfo, nil
+}
+
+func (a *authenticateHandler) ValidateTemporaryToken(ctx *gin.Context) {
+	span := tracer.StartSpanFromContext(ctx, "handler/ValidateTemporaryToken")
+	defer span.Finish()
+
+	var tokenDto dto.TokenDto
+
+	decoder := json.NewDecoder(ctx.Request.Body)
+
+	if err := decoder.Decode(&tokenDto); err != nil {
+		ctx.JSON(400, gin.H{"message" : "Token decoding error"})
+		ctx.Abort()
+		return
+	}
+
+	at, err := a.AuthenticationUsecase.FetchTemporaryToken(ctx, tokenDto.TokenId)
+
+	if err != nil {
+		ctx.JSON(401, gin.H{"message" : "Invalid token"})
+		ctx.Abort()
+		return
+	}
+
+	token, err := a.JwtUsecase.ValidateToken(ctx, string(at))
+	if err != nil || token == ""{
+		ctx.JSON(401, gin.H{"message" : "Invalid token"})
+		ctx.Abort()
+		return
+	}
+
+	ctx.JSON(200, token)
+
+
 }
 
 func (a *authenticateHandler) logMetadata(span opentracing.Span, ctx *gin.Context) {

@@ -23,7 +23,7 @@ type AuthenticationUsecase interface {
 	FetchRefreshToken(ctx context.Context, refreshTokenUuid string) ([]byte, error)
 	DeleteAuthToken(ctx context.Context, tokenUuid string) error
 	SaveTemporaryToken(ctx context.Context, td *domain.TemporaryTokenDetails) error
-	FetchTemporaryToken(ctx context.Context, tokenUuid string, td *domain.TemporaryTokenDetails) ([]byte, error)
+	FetchTemporaryToken(ctx context.Context, tokenUuid string) ([]byte, error)
 	DeleteTemporaryToken(ctx context.Context, tokenUuid string) error
 }
 
@@ -106,7 +106,7 @@ func (a *authenticationUsecase) SaveTemporaryToken(ctx context.Context, td *doma
 	return nil
 }
 
-func (a *authenticationUsecase) FetchTemporaryToken(ctx context.Context, tokenUuid string, td *domain.TemporaryTokenDetails) ([]byte, error) {
+func (a *authenticationUsecase) FetchTemporaryToken(ctx context.Context, tokenUuid string) ([]byte, error) {
 	span := tracer.StartSpanFromContext(ctx, "usecase/FetchTemporaryToken")
 	defer span.Finish()
 

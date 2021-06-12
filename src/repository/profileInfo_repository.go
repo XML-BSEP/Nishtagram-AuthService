@@ -62,7 +62,7 @@ func (p *profileInfoRepository) GetProfileinfoByUsernameOrEmail(context context.
 
 func (p *profileInfoRepository) GetProfileInfoById(context context.Context, id string) (*domain.ProfileInfo, error) {
 	var value *domain.ProfileInfo
-	err :=  p.Conn.Where("id = ?", id).Take(&value).Error
+	err := p.Conn.Preload("Role").Take(&value,"id = ?", id).Error
 	return value, err
 }
 
