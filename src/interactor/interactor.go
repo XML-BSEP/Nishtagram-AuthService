@@ -7,16 +7,17 @@ import (
 	"auth-service/infrastructure/tracer"
 	"auth-service/repository"
 	"auth-service/usecase"
+	"io"
+
 	resty2 "github.com/go-resty/resty/v2"
 	"github.com/opentracing/opentracing-go"
 	"gorm.io/gorm"
-	"io"
 )
 
 const tracing_name = "auth_service"
 
 type interactor struct {
-	Conn *gorm.DB
+	Conn   *gorm.DB
 	Tracer opentracing.Tracer
 	Closer io.Closer
 }
@@ -25,7 +26,6 @@ type Interactor interface {
 	NewProfileInfoRepository() repository.ProfileInfoRepository
 	NewRoleRepository() repository.RoleRepository
 	NewTotpRepository() repository.TotpRepository
-
 
 	NewRedisUsecase() usecase.RedisUsecase
 	NewAuthenticationUsecase() usecase.AuthenticationUsecase
@@ -40,7 +40,6 @@ type Interactor interface {
 	NewTotpHandler() handler.TotpHandler
 
 	NewUserGateway() gateway.UserGateway
-
 }
 
 type appHandler struct {
@@ -59,7 +58,7 @@ func NewInteractor(conn *gorm.DB) Interactor {
 	tracer, closer := tracer.Init(tracing_name)
 	opentracing.SetGlobalTracer(tracer)
 	return &interactor{
-		Conn: conn,
+		Conn:   conn,
 		Tracer: tracer,
 		Closer: closer,
 	}
@@ -94,11 +93,12 @@ func (i *interactor) NewJwtUsecase() usecase.JwtUsecase {
 }
 
 func (i *interactor) NewAuthenticationHandler() handler.AuthenticationHandler {
-	return handler.NewAuthenticationHandler(i.NewAuthenticationUsecase(), i.NewJwtUsecase(), i.NewProfileInfoUsecase(), i.NewTotpUsecase(), i.Tracer)
+
+	return handler.NewAuthenticationHandler(i.NewAuthenticationUsecase(), i.NewJwtUsecase(), i.NewProfileInfoUsecase(), i.Tracer, i.NewRedisUsecase(), i.NewTotpUsecase())
 }
 
 func (i *interactor) NewProfileInfoUsecase() usecase.ProfileInfoUsecase {
-	return usecase.NewProfileInfoUsecase(i.NewProfileInfoRepository())
+	return usecase.NewProfileInfoUsecase(i.NewProfileInfoRepository(), i.NewRedisUsecase())
 }
 
 func (i *interactor) NewRegistrationUsecase() usecase.RegistrationUsecase {

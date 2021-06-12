@@ -4,6 +4,7 @@ import (
 	"auth-service/domain"
 	"auth-service/infrastructure/tracer"
 	"context"
+
 	"gorm.io/gorm"
 )
 
@@ -17,6 +18,7 @@ type ProfileInfoRepository interface {
 	Create(context context.Context, profileInfo *domain.ProfileInfo) error
 	GetProfileinfoByUsernameOrEmail(context context.Context, username, email string) error
 	GetProfileInfoById(context context.Context, id string) (*domain.ProfileInfo, error)
+	Update(context context.Context, profileInfo *domain.ProfileInfo) error
 }
 
 func NewProfileInfoRepository(conn *gorm.DB) ProfileInfoRepository {
@@ -25,7 +27,7 @@ func NewProfileInfoRepository(conn *gorm.DB) ProfileInfoRepository {
 
 func (p *profileInfoRepository) GetProfileInfoByEmail(context context.Context, email string) (domain.ProfileInfo, error) {
 	profileInfo := domain.ProfileInfo{}
-	err := p.Conn.Joins("Role").Take(&profileInfo,"email = ?", email).Error
+	err := p.Conn.Joins("Role").Take(&profileInfo, "email = ?", email).Error
 
 	return profileInfo, err
 }
@@ -35,7 +37,7 @@ func (p *profileInfoRepository) GetProfileInfoByUsername(context context.Context
 	defer span.Finish()
 
 	profileInfo := domain.ProfileInfo{}
-	err := p.Conn.Joins("Role").Take(&profileInfo,"username = ?", username).Error
+	err := p.Conn.Joins("Role").Take(&profileInfo, "username = ?", username).Error
 
 	if err != nil {
 		tracer.LogError(span, err)
@@ -47,6 +49,10 @@ func (p *profileInfoRepository) GetProfileInfoByUsername(context context.Context
 func (p *profileInfoRepository) Create(context context.Context, profileInfo *domain.ProfileInfo) error {
 	return p.Conn.Create(profileInfo).Error
 }
+func (p *profileInfoRepository) Update(context context.Context, profileInfo *domain.ProfileInfo) error {
+	err := p.Conn.Save(profileInfo).Error
+	return err
+}
 
 func (p *profileInfoRepository) GetByUsernameOrEmail(context context.Context, username, email string) (domain.ProfileInfo, error) {
 	var value domain.ProfileInfo
@@ -54,7 +60,7 @@ func (p *profileInfoRepository) GetByUsernameOrEmail(context context.Context, us
 	return value, err
 }
 
-func (p *profileInfoRepository) GetProfileinfoByUsernameOrEmail(context context.Context, username, email string)  error{
+func (p *profileInfoRepository) GetProfileinfoByUsernameOrEmail(context context.Context, username, email string) error {
 	var value *domain.ProfileInfo
 	return p.Conn.Where("username = ? or email = ?", username, email).Take(&value).Error
 
@@ -62,10 +68,6 @@ func (p *profileInfoRepository) GetProfileinfoByUsernameOrEmail(context context.
 
 func (p *profileInfoRepository) GetProfileInfoById(context context.Context, id string) (*domain.ProfileInfo, error) {
 	var value *domain.ProfileInfo
-	err := p.Conn.Preload("Role").Take(&value,"id = ?", id).Error
+	err := p.Conn.Preload("Role").Take(&value, "id = ?", id).Error
 	return value, err
 }
-
-
-
-

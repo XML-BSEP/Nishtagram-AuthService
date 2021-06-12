@@ -27,7 +27,6 @@ func Init(service string) (opentracing.Tracer, io.Closer) {
 	cfg.Sampler.Param = 1
 	cfg.Reporter.LogSpans = true
 
-
 	jLogger := jaegerlog.StdLogger
 	jMetricsFactory := metrics.NullFactory
 	tracer, closer, err := cfg.NewTracer(

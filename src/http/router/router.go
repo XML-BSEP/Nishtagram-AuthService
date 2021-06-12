@@ -2,11 +2,15 @@ package router
 
 import (
 	"auth-service/interactor"
+
+	"github.com/gin-contrib/secure"
 	"github.com/gin-gonic/gin"
 )
 
 func NewRouter(handler interactor.AppHandler) *gin.Engine {
 	router := gin.Default()
+
+	router.Use(secure.New(secure.DefaultConfig()))
 
 	router.POST("/validateToken", handler.ValidateToken)
 	router.POST("/login", handler.Login)
@@ -19,7 +23,9 @@ func NewRouter(handler interactor.AppHandler) *gin.Engine {
 	router.POST("/disableTotp", handler.Disable)
 	router.POST("/validateTotp", handler.Validate)
 	router.POST("/validateTemporaryToken", handler.ValidateTemporaryToken)
+	router.POST("/resendRegistrationCode", handler.ResendCode)
+	router.POST("/resetPasswordMail", handler.SendResetMail)
+	router.POST("/resetPassword", handler.ResetPassword)
+
 	return router
 }
-
-
