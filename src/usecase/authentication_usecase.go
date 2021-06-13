@@ -69,8 +69,8 @@ func (a *authenticationUsecase) SaveRefreshToken(ctx context.Context, userId uin
 	rt := time.Unix(td.RtExpires, 0)
 	now := time.Now()
 
-	key := refreshToken + td.RefreshUuid
-	if err := a.RedisUsecase.AddKeyValueSet(ctx, key, td.AccessToken, rt.Sub(now)); err != nil {
+	key := refreshToken + td.TokenUuid
+	if err := a.RedisUsecase.AddKeyValueSet(ctx, key, td.RefreshToken, rt.Sub(now)); err != nil {
 		return err
 	}
 

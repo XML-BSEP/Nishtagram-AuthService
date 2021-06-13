@@ -42,6 +42,7 @@ type authenticateHandler struct {
 	logger *logger.Logger
 }
 
+
 type AuthenticationHandler interface {
 	Login(ctx *gin.Context)
 	ValidateToken(ctx *gin.Context)
@@ -50,6 +51,8 @@ type AuthenticationHandler interface {
 	ValidateTemporaryToken(ctx *gin.Context)
 	SendResetMail(ctx *gin.Context)
 	ResetPassword(ctx *gin.Context)
+	RefreshToken(ctx *gin.Context)
+
 }
 
 func NewAuthenticationHandler(authUsecase usecase.AuthenticationUsecase, jwtUSecase usecase.JwtUsecase, profileInfoUsecase usecase.ProfileInfoUsecase, tracer opentracing.Tracer, redis usecase.RedisUsecase, totpUsecase usecase.TotpUsecase, logger *logger.Logger) AuthenticationHandler {
@@ -115,12 +118,12 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 			ctx.JSON(400, gin.H{"message": "Can not create temporary code"})
 			return
 		}
-
+		userInfo.Role = "temporary_user"
 		ctx.JSON(200, userInfo)
 		return
 	}
 
-	val, err := a.generateToken(ctx1, profileInfo)
+	val, err := a.generateToken(ctx1, profileInfo, authenticationDto.Refresh)
 
 	if err != nil {
 		a.logger.Logger.Errorf("error while generating token for %v, error: %v\n", profileInfo.ID, err)
@@ -364,7 +367,7 @@ func (a *authenticateHandler) Validate(ctx *gin.Context) {
 	}
 
 	profileInfo, err := a.ProfileInfoUsecase.GetProfileInfoById(ctx1, userId)
-	val, err := a.generateToken(ctx1, *profileInfo)
+	val, err := a.generateToken(ctx1, *profileInfo, totpSecretDto.Refresh)
 
 	if err != nil {
 		a.logger.Logger.Errorf("error while generating token, error: %v\n", err)
@@ -385,14 +388,14 @@ func (a *authenticateHandler) Validate(ctx *gin.Context) {
 
 }
 
-func (a *authenticateHandler) generateToken(ctx context.Context, profileInfo domain.ProfileInfo) (*dto.AuthenticatedUserInfoDto, error) {
+func (a *authenticateHandler) generateToken(ctx context.Context, profileInfo domain.ProfileInfo, refresh bool) (*dto.AuthenticatedUserInfoDto, error) {
 	a.logger.Logger.Println("Handling GENERATING TOKEN")
 	span := tracer.StartSpanFromContext(ctx, "handler/generateToken")
 	defer span.Finish()
 
 	ctx1 := tracer.ContextWithSpan(ctx, span)
 
-	token, err := a.JwtUsecase.CreateToken(ctx1, profileInfo.Role.RoleName, profileInfo.ID)
+	token, err := a.JwtUsecase.CreateToken(ctx1, profileInfo.Role.RoleName, profileInfo.ID, true)
 	if err != nil {
 		a.logger.Logger.Errorf("error while creating token, error: %v\n", err)
 		return nil, err
@@ -402,7 +405,7 @@ func (a *authenticateHandler) generateToken(ctx context.Context, profileInfo dom
 		Role:  profileInfo.Role.RoleName,
 		Id:    profileInfo.ID,
 	}
-	a.AuthenticationUsecase.SaveAuthToken(ctx1, 12, token)
+
 
 	return &authenticatedUserInfo, nil
 }
@@ -482,4 +485,55 @@ func verifyAuthPassword(s string) (eightOrMore, number, upper, special bool) {
 	}
 	eightOrMore = letters >= 8
 	return
+}
+
+func (a *authenticateHandler) RefreshToken(ctx *gin.Context) {
+	a.logger.Logger.Println("Handling LOGIN")
+	span := tracer.StartSpanFromRequest("Login", a.Tracer, ctx.Request)
+	defer span.Finish()
+	a.logMetadata(span, ctx)
+
+	var tokenDto dto.TokenDto
+
+	decoder := json.NewDecoder(ctx.Request.Body)
+
+	if err := decoder.Decode(&tokenDto); err != nil {
+		a.logger.Logger.Errorf("error while decoding json, error: %v\n", err)
+		ctx.JSON(400, gin.H{"message": "Token decoding error"})
+		ctx.Abort()
+		return
+	}
+
+	policy := bluemonday.UGCPolicy()
+	tokenDto.TokenId = strings.TrimSpace(policy.Sanitize(tokenDto.TokenId))
+
+	ctx1 := tracer.ContextWithSpan(ctx, span)
+	rt, err := a.AuthenticationUsecase.FetchRefreshToken(ctx1, tokenDto.TokenId)
+
+	if err != nil {
+		a.logger.Logger.Errorf("error while fetching refresh token, error: %v\n", err)
+		ctx.JSON(401, gin.H{"message": "Invalid token"})
+		return
+	}
+
+	token, uuid, err := a.JwtUsecase.RefreshToken(ctx1, string(rt))
+
+	if err != nil {
+		a.logger.Logger.Errorf("error while refreshing token, error: %v\n", err)
+		ctx.JSON(401, gin.H{"message": "Invalid token"})
+		return
+	}
+
+	err = a.JwtUsecase.DeleteRefreshToken(ctx1, tokenDto.TokenId)
+
+	if err != nil {
+		a.logger.Logger.Errorf("error while refreshing token, error: %v\n", err)
+		ctx.JSON(401, gin.H{"message": "Invalid token"})
+		return
+	}
+
+
+	refreshTokenDto := dto.RefreshTokenDto{TokenUuid: *uuid, Token: *token}
+	a.logger.Logger.Infof("token refreshed for token %v\n", string(rt))
+	ctx.JSON(200, refreshTokenDto)
 }

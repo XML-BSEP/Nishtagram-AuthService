@@ -92,7 +92,7 @@ func (i *interactor) NewAuthenticationUsecase() usecase.AuthenticationUsecase {
 }
 
 func (i *interactor) NewJwtUsecase() usecase.JwtUsecase {
-	return usecase.NewJwtUsecase(i.NewRedisUsecase(), i.logger)
+	return usecase.NewJwtUsecase(i.NewRedisUsecase(), i.logger, i.NewAuthenticationUsecase())
 }
 
 func (i *interactor) NewAuthenticationHandler() handler.AuthenticationHandler {
