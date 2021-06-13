@@ -9,7 +9,7 @@ p, USER, /verifySecret, *
 p, ANONYMOUS, /isTotpEnabled, *
 p, USER, /isTotpEnabled, *
 p, USER, /disableTotp, *
-p, USER, /validateTotp, *
+p, TEMPORARY_USER, /validateTotp, *
 p, ANONYMOUS, /validateTemporaryToken, *
 p, USER, /resetPasswordMail, *
 p, USER, /resetPassword, *

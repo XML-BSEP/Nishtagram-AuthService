@@ -118,7 +118,7 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 			ctx.JSON(400, gin.H{"message": "Can not create temporary code"})
 			return
 		}
-
+		userInfo.Role = "temporary_user"
 		ctx.JSON(200, userInfo)
 		return
 	}
