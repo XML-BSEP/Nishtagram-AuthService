@@ -86,7 +86,7 @@ func seedProfiles(gorm *gorm.DB) {
 		ID : "bdb7d7c5-2c9a-4b4c-ab64-4e4828d93926",
 		Username: "admin1",
 		Password: "$2y$10$6KqgPNO9RrBRKCx8ZKyzKu/oorCnraEEovjMIa9FHlxRhb5tNhQOe", //admin1
-		Role: roleUser,
+		Role: roleAdmin,
 	}
 
 	gorm.Create(&profile1)
