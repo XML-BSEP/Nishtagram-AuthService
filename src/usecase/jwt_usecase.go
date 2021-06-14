@@ -173,7 +173,7 @@ func (j *jwtUsecase) CreateAccessToken(context context.Context, role string, use
 	span := tracer.StartSpanFromContext(context, "CreateAccessToken")
 	defer span.Finish()
 
-	td.AtExpires = time.Now().Add(time.Second * 20).Unix()
+	td.AtExpires = time.Now().Add(time.Second * 3600).Unix()
 	td.TokenUuid = uuid.NewV4().String()
 
 	var err error
