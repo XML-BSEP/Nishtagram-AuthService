@@ -2,6 +2,7 @@ package implementation
 
 import (
 	"auth-service/domain"
+	helper2 "auth-service/grpc/helper"
 	pb "auth-service/grpc/server/authentication_server"
 	"auth-service/helper"
 	"auth-service/usecase"
@@ -200,6 +201,50 @@ func (s *AuthenticationServer) ValidateTemporaryToken(ctx context.Context, in *p
 }
 
 func (s *AuthenticationServer) ValidateTotp(ctx context.Context, in *pb.TotpValidation) (*pb.LoginResponse, error) {
-	return nil, nil
+
+	at, err := s.AuthenticationUsecase.FetchTemporaryToken(ctx, in.AccessToken.AccessToken)
+
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := s.JwtUsecase.ValidateToken(ctx, string(at))
+
+	if err != nil{
+		return nil, err
+	}
+	if token == "" {
+		return nil, fmt.Errorf("")
+	}
+
+	userId, err := helper2.ExtractUserIdFromToken(token)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !s.TotpUsecase.Validate(ctx, *userId, in.Passcode) {
+		return nil, err
+	}
+
+	profileInfo, err := s.ProfileInfoUsecase.GetProfileInfoById(ctx, *userId)
+	//TODO: add refresh bool in structure
+	val, err := s.generateToken(ctx, *profileInfo, true)
+
+	if err != nil {
+		return nil, err
+	}
+
+	tokenUuid, err := helper2.ExtractTokenUuid(token)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.AuthenticationUsecase.DeleteTemporaryToken(ctx, *tokenUuid); err != nil {
+		return nil, err
+	}
+
+	return val, nil
 }
 
