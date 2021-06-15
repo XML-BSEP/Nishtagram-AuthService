@@ -2,6 +2,7 @@ package interactor
 
 import (
 	"auth-service/gateway"
+	"auth-service/grpc/server/authentication_server/implementation"
 	"auth-service/http/handler"
 	"auth-service/infrastructure/redisdb"
 	"auth-service/infrastructure/tracer"
@@ -13,6 +14,7 @@ import (
 	resty2 "github.com/go-resty/resty/v2"
 	"github.com/opentracing/opentracing-go"
 	"gorm.io/gorm"
+	totp_implementation "auth-service/grpc/server/2fa_server/implementation"
 )
 
 const tracing_name = "auth_service"
@@ -42,6 +44,9 @@ type Interactor interface {
 	NewTotpHandler() handler.TotpHandler
 
 	NewUserGateway() gateway.UserGateway
+
+	NewAuthenticationServiceImpl() *implementation.AuthenticationServer
+	NewTotpServiceImpl() *totp_implementation.TotpServer
 }
 
 type appHandler struct {
@@ -127,4 +132,12 @@ func (i *interactor) NewTotpUsecase() usecase.TotpUsecase {
 
 func (i *interactor) NewTotpHandler() handler.TotpHandler {
 	return handler.NewTotpHandler(i.NewTotpUsecase(), i.Tracer, i.NewProfileInfoUsecase(), i.logger)
+}
+
+func (i *interactor) NewAuthenticationServiceImpl() *implementation.AuthenticationServer {
+	return implementation.NewAuthenticationServiceImpl(i.NewProfileInfoUsecase(), i.NewTotpUsecase(), i.NewJwtUsecase(), i.NewAuthenticationUsecase(), i.NewRedisUsecase())
+}
+
+func (i *interactor) NewTotpServiceImpl() *totp_implementation.TotpServer {
+	return totp_implementation.NewTotpServer(i.NewTotpUsecase(), i.NewProfileInfoUsecase())
 }

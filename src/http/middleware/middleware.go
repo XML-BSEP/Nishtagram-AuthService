@@ -254,3 +254,5 @@ func ExtractUserRole(ctx context.Context, r *http.Request, logger *logger.Logger
 	}
 	return  "ANONYMOUS", err
 }
+
+
