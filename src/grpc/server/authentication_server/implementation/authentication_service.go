@@ -34,6 +34,8 @@ func NewAuthenticationServiceImpl(profileInfoUsecase usecase.ProfileInfoUsecase,
 }
 
 func (s *AuthenticationServer) Login(ctx context.Context, in *pb.LoginCredentials) (*pb.LoginResponse, error) {
+
+
 	policy := bluemonday.UGCPolicy()
 	in.Username = strings.TrimSpace(policy.Sanitize(in.Username))
 	in.Password = strings.TrimSpace(policy.Sanitize(in.Password))
@@ -59,8 +61,9 @@ func (s *AuthenticationServer) Login(ctx context.Context, in *pb.LoginCredential
 
 		return userInfo, err
 	}
-
+	fmt.Println("Usao u login")
 	val, err := s.generateToken(ctx, profileInfo, true)
+	fmt.Println("GENERISAN TOKEN: " + val.AccessToken)
 
 	if err != nil {
 		return nil, err
@@ -86,7 +89,8 @@ func (s *AuthenticationServer) ValidateToken(ctx context.Context, in *pb.Tokens)
 	in.RefreshToken = strings.TrimSpace(policy.Sanitize(in.RefreshToken))
 
 	at, err := s.AuthenticationUsecase.FetchAuthToken(ctx, in.Token)
-
+	fmt.Println("Prosao0, Dobijen tokenId: " + in.Token)
+	fmt.Println("Prosao1, Token: " + string(at))
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +102,7 @@ func (s *AuthenticationServer) ValidateToken(ctx context.Context, in *pb.Tokens)
 		return nil, err
 	}
 
-	return &pb.AccessToken{AccessToken: token}, nil
+	return &pb.AccessToken{AccessToken: in.Token}, nil
 }
 
 func (s *AuthenticationServer) ResendEmail(ctx context.Context, in *pb.ResendEmailRequest) (*pb.BooleanResponse, error) {
@@ -161,8 +165,6 @@ func (s *AuthenticationServer) CreateTemporaryToken(ctx context.Context, profile
 func (s *AuthenticationServer) generateToken(ctx context.Context, profileInfo domain.ProfileInfo, refresh bool) (*pb.LoginResponse, error) {
 
 
-
-
 	token, err := s.JwtUsecase.CreateToken(ctx, profileInfo.Role.RoleName, profileInfo.ID, true)
 	if err != nil {
 
@@ -174,7 +176,7 @@ func (s *AuthenticationServer) generateToken(ctx context.Context, profileInfo do
 		Id:    profileInfo.ID,
 	}
 
-
+	fmt.Print("KREIRAN TOKEN ID: " + authenticatedUserInfo.AccessToken)
 	return &authenticatedUserInfo, nil
 }
 

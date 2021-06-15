@@ -59,7 +59,7 @@ func main() {
 		log.Fatalln(grpcServer.Serve(lis))
 	}()
 
-	logger.Logger.Info("server auth-service listening on port %s\n", port)
+	logger.Logger.Info("server auth-service listening on port ", port)
 
 	router.RunTLS(":8091", "certificate/cert.pem", "certificate/key.pem")
 }
