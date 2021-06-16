@@ -69,6 +69,6 @@ func main() {
 	}()
 
 	logger.Logger.Info("server auth-service listening on port ", port)
-
+	//logger.Logger.Info("server auth-service listening on port 8091")
 	router.RunTLS(":8091", "certificate/cert.pem", "certificate/key.pem")
 }
