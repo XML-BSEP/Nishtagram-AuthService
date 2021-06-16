@@ -1,6 +1,7 @@
 package main
 
 import (
+	"auth-service/grpc/interceptor/auth_interceptor"
 	"auth-service/grpc/server/authentication_server"
 	"auth-service/http/middleware"
 	router2 "auth-service/http/router"
@@ -12,13 +13,14 @@ import (
 	"github.com/gin-gonic/gin"
 	logger "github.com/jelena-vlajkov/logger/logger"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"log"
 	"net"
 	"time"
 )
 
 func getNetListener(port uint) net.Listener {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	lis, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 		panic(fmt.Sprintf("failed to listen: %v", err))
@@ -49,7 +51,14 @@ func main() {
 
 	port := uint(8079)
 	lis := getNetListener(port)
-	grpcServer := grpc.NewServer()
+	creds, err := credentials.NewServerTLSFromFile("certificate/cert.pem", "certificate/key.pem")
+	if err != nil {
+		panic(err)
+	}
+
+	a := auth_interceptor.NewAuthUnaryInterceptor(interactor.NewAuthenticationUsecase())
+
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(a.UnaryAuthorizationInterceptor), grpc.Creds(creds))
 	loginServiceImpl := interactor.NewAuthenticationServiceImpl()
 	totpServiceImpl := interactor.NewTotpServiceImpl()
 

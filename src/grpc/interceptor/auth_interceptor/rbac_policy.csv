@@ -1,0 +1,9 @@
+p, ANONYMOUS, /Authentication/ValidateToken, *
+p, ANONYMOUS, /Authentication/Login, *
+p, ANONYMOUS, /Authentication/Logout, *
+p, TEMPORARY_USER, /Authentication/ValidateTotp, *
+
+
+
+
+

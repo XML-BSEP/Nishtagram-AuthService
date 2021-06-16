@@ -191,11 +191,11 @@ func (s *AuthenticationServer) generateToken(ctx context.Context, profileInfo do
 		RefreshToken: token.RefreshUuid,
 	}
 
-	fmt.Print("KREIRAN TOKEN ID: " + authenticatedUserInfo.AccessToken)
 	return &authenticatedUserInfo, nil
 }
 
 func (s *AuthenticationServer) ValidateTemporaryToken(ctx context.Context, in *pb.AccessToken) (*pb.AccessToken, error) {
+
 
 	at, err := s.AuthenticationUsecase.FetchTemporaryToken(ctx, in.AccessToken)
 
@@ -218,6 +218,8 @@ func (s *AuthenticationServer) ValidateTemporaryToken(ctx context.Context, in *p
 }
 
 func (s *AuthenticationServer) ValidateTotp(ctx context.Context, in *pb.TotpValidation) (*pb.LoginResponse, error) {
+
+
 
 	at, err := s.AuthenticationUsecase.FetchTemporaryToken(ctx, in.AccessToken.AccessToken)
 
