@@ -6,7 +6,7 @@ option go_package = "Nishtagram-AuthService/sec/grpc/server/authentication_serve
 service Authentication {
   rpc Login(LoginCredentials) returns (LoginResponse);
   rpc Logout(Tokens) returns (BooleanResponse);
-  rpc ValidateToken(Tokens) returns (AccessToken);
+  rpc ValidateToken(Tokens) returns (TokenValidationResponse);
   rpc ResendEmail(ResendEmailRequest) returns (BooleanResponse);
   rpc GenerateSecret(AccessToken) returns (ScanTotp);
   rpc ValidateTemporaryToken(AccessToken) returns (AccessToken);
@@ -43,6 +43,12 @@ message BooleanResponse {
 
 message AccessToken {
   string accessToken = 1;
+}
+
+message TokenValidationResponse {
+  string accessToken = 1;
+  string accessTokenUuid = 2;
+  string refreshTokenUuid = 3;
 }
 
 message ResendEmailRequest {

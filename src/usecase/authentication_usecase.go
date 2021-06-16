@@ -27,6 +27,7 @@ type AuthenticationUsecase interface {
 	SaveTemporaryToken(ctx context.Context, td *domain.TemporaryTokenDetails) error
 	FetchTemporaryToken(ctx context.Context, tokenUuid string) ([]byte, error)
 	DeleteTemporaryToken(ctx context.Context, tokenUuid string) error
+	DeleteRefreshToken(ctx context.Context, refreshTokenUuid string) error
 }
 
 func NewAuthenticationUsecase(redisUsecase RedisUsecase, logger *logger.Logger) AuthenticationUsecase{
@@ -69,7 +70,7 @@ func (a *authenticationUsecase) SaveRefreshToken(ctx context.Context, userId uin
 	rt := time.Unix(td.RtExpires, 0)
 	now := time.Now()
 
-	key := refreshToken + td.TokenUuid
+	key := refreshToken + td.RefreshUuid
 	if err := a.RedisUsecase.AddKeyValueSet(ctx, key, td.RefreshToken, rt.Sub(now)); err != nil {
 		return err
 	}
@@ -147,6 +148,20 @@ func (a *authenticationUsecase) DeleteTemporaryToken(ctx context.Context, tokenU
 	return nil
 }
 
+func (a *authenticationUsecase) DeleteRefreshToken(ctx context.Context, refreshTokenUuid string) error {
+	a.logger.Logger.Infof("deleting refresh token")
+	span := tracer.StartSpanFromContext(ctx, "usecase/DeleteRefreshToken")
+	defer span.Finish()
+
+	key := refreshToken + refreshTokenUuid
+
+	if err := a.RedisUsecase.DeleteValueByKey(ctx, key); err != nil {
+		tracer.LogError(span, err)
+		return err
+	}
+
+	return nil
+}
 
 
 

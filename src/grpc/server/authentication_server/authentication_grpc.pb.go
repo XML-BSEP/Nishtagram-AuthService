@@ -20,7 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 type AuthenticationClient interface {
 	Login(ctx context.Context, in *LoginCredentials, opts ...grpc.CallOption) (*LoginResponse, error)
 	Logout(ctx context.Context, in *Tokens, opts ...grpc.CallOption) (*BooleanResponse, error)
-	ValidateToken(ctx context.Context, in *Tokens, opts ...grpc.CallOption) (*AccessToken, error)
+	ValidateToken(ctx context.Context, in *Tokens, opts ...grpc.CallOption) (*TokenValidationResponse, error)
 	ResendEmail(ctx context.Context, in *ResendEmailRequest, opts ...grpc.CallOption) (*BooleanResponse, error)
 	GenerateSecret(ctx context.Context, in *AccessToken, opts ...grpc.CallOption) (*ScanTotp, error)
 	ValidateTemporaryToken(ctx context.Context, in *AccessToken, opts ...grpc.CallOption) (*AccessToken, error)
@@ -53,8 +53,8 @@ func (c *authenticationClient) Logout(ctx context.Context, in *Tokens, opts ...g
 	return out, nil
 }
 
-func (c *authenticationClient) ValidateToken(ctx context.Context, in *Tokens, opts ...grpc.CallOption) (*AccessToken, error) {
-	out := new(AccessToken)
+func (c *authenticationClient) ValidateToken(ctx context.Context, in *Tokens, opts ...grpc.CallOption) (*TokenValidationResponse, error) {
+	out := new(TokenValidationResponse)
 	err := c.cc.Invoke(ctx, "/Authentication/ValidateToken", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -104,7 +104,7 @@ func (c *authenticationClient) ValidateTotp(ctx context.Context, in *TotpValidat
 type AuthenticationServer interface {
 	Login(context.Context, *LoginCredentials) (*LoginResponse, error)
 	Logout(context.Context, *Tokens) (*BooleanResponse, error)
-	ValidateToken(context.Context, *Tokens) (*AccessToken, error)
+	ValidateToken(context.Context, *Tokens) (*TokenValidationResponse, error)
 	ResendEmail(context.Context, *ResendEmailRequest) (*BooleanResponse, error)
 	GenerateSecret(context.Context, *AccessToken) (*ScanTotp, error)
 	ValidateTemporaryToken(context.Context, *AccessToken) (*AccessToken, error)
@@ -122,7 +122,7 @@ func (UnimplementedAuthenticationServer) Login(context.Context, *LoginCredential
 func (UnimplementedAuthenticationServer) Logout(context.Context, *Tokens) (*BooleanResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Logout not implemented")
 }
-func (UnimplementedAuthenticationServer) ValidateToken(context.Context, *Tokens) (*AccessToken, error) {
+func (UnimplementedAuthenticationServer) ValidateToken(context.Context, *Tokens) (*TokenValidationResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ValidateToken not implemented")
 }
 func (UnimplementedAuthenticationServer) ResendEmail(context.Context, *ResendEmailRequest) (*BooleanResponse, error) {

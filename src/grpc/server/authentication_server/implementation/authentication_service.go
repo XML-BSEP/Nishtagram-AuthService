@@ -61,9 +61,9 @@ func (s *AuthenticationServer) Login(ctx context.Context, in *pb.LoginCredential
 
 		return userInfo, err
 	}
-	fmt.Println("Usao u login")
+
 	val, err := s.generateToken(ctx, profileInfo, true)
-	fmt.Println("GENERISAN TOKEN: " + val.AccessToken)
+
 
 	if err != nil {
 		return nil, err
@@ -78,31 +78,45 @@ func (s *AuthenticationServer) Logout(ctx context.Context, in *pb.Tokens) (*pb.B
 		return &pb.BooleanResponse{Success: false}, err
 	}
 
+	if err := s.AuthenticationUsecase.DeleteRefreshToken(ctx, in.RefreshToken); err != nil {
+		return &pb.BooleanResponse{Success: false}, err
+	}
+
 	return &pb.BooleanResponse{Success: true}, nil
 
 }
 
-func (s *AuthenticationServer) ValidateToken(ctx context.Context, in *pb.Tokens) (*pb.AccessToken, error) {
+func (s *AuthenticationServer) ValidateToken(ctx context.Context, in *pb.Tokens) (*pb.TokenValidationResponse, error) {
 
 	policy := bluemonday.UGCPolicy()
 	in.Token = strings.TrimSpace(policy.Sanitize(in.Token))
 	in.RefreshToken = strings.TrimSpace(policy.Sanitize(in.RefreshToken))
 
-	at, err := s.AuthenticationUsecase.FetchAuthToken(ctx, in.Token)
-	fmt.Println("Prosao0, Dobijen tokenId: " + in.Token)
-	fmt.Println("Prosao1, Token: " + string(at))
-	if err != nil {
-		return nil, err
+	at, errAt := s.AuthenticationUsecase.FetchAuthToken(ctx, in.Token)
+
+	token, errAtValidation := s.JwtUsecase.ValidateToken(ctx, string(at))
+
+	//If token exists, but is not valid
+	if errAt == nil && errAtValidation != nil {
+		return nil, errAt
 	}
 
-
-	token, err := s.JwtUsecase.ValidateToken(ctx, string(at))
-
-	if err != nil || token == "" {
-		return nil, err
+	newToken := &pb.TokenValidationResponse{
+		AccessToken: token,
+		AccessTokenUuid: in.Token,
+		RefreshTokenUuid: in.RefreshToken,
 	}
 
-	return &pb.AccessToken{AccessToken: in.Token}, nil
+	var errRt error
+	if errAt != nil || token == "" {
+
+		newToken, errRt = s.RefreshToken(ctx, in.RefreshToken)
+		if errRt != nil {
+			return nil, errRt
+		}
+	}
+
+	return newToken, nil
 }
 
 func (s *AuthenticationServer) ResendEmail(ctx context.Context, in *pb.ResendEmailRequest) (*pb.BooleanResponse, error) {
@@ -174,6 +188,7 @@ func (s *AuthenticationServer) generateToken(ctx context.Context, profileInfo do
 		AccessToken: token.TokenUuid,
 		Role:  profileInfo.Role.RoleName,
 		Id:    profileInfo.ID,
+		RefreshToken: token.RefreshUuid,
 	}
 
 	fmt.Print("KREIRAN TOKEN ID: " + authenticatedUserInfo.AccessToken)
@@ -250,3 +265,30 @@ func (s *AuthenticationServer) ValidateTotp(ctx context.Context, in *pb.TotpVali
 	return val, nil
 }
 
+func (s *AuthenticationServer) RefreshToken(context context.Context, refreshTokenUuid string) (*pb.TokenValidationResponse, error) {
+
+
+	rt, err := s.AuthenticationUsecase.FetchRefreshToken(context, refreshTokenUuid)
+	if err != nil {
+		return nil, err
+	}
+
+	refreshToken, err := s.JwtUsecase.ValidateToken(context, string(rt))
+
+	if err != nil || refreshToken == "" {
+		return nil, err
+	}
+
+	token, uuid, err := s.JwtUsecase.RefreshToken(context, refreshToken)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &pb.TokenValidationResponse{
+		AccessToken: *token,
+		AccessTokenUuid: *uuid,
+		RefreshTokenUuid: refreshTokenUuid,
+	}
+
+	return ret, nil
+}
