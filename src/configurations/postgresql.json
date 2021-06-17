@@ -1,5 +1,5 @@
 {
-  "docker" : false,
+  "docker" : true,
   "database": {
     "host_localhost": "localhost",
     "host_docker" : "authpostgres",
