@@ -1,6 +1,8 @@
 package main
 
 import (
+	"auth-service/grpc/interceptor/auth_interceptor"
+	"auth-service/grpc/server/authentication_server"
 	"auth-service/http/middleware"
 	router2 "auth-service/http/router"
 	"auth-service/infrastructure/postgresqldb"
@@ -10,8 +12,23 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	logger "github.com/jelena-vlajkov/logger/logger"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"log"
+	"net"
 	"time"
 )
+
+func getNetListener(port uint) net.Listener {
+	lis, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+		panic(fmt.Sprintf("failed to listen: %v", err))
+	}
+
+	return lis
+}
+
 
 func main() {
 
@@ -32,7 +49,26 @@ func main() {
 	value, _ := redis.GetValueByKey(context.Background(), "aaa")
 	fmt.Println(value)
 
+	port := uint(8079)
+	lis := getNetListener(port)
+	creds, err := credentials.NewServerTLSFromFile("certificate/cert.pem", "certificate/key.pem")
+	if err != nil {
+		panic(err)
+	}
 
-	logger.Logger.Info("server auth-service listening on port 8091")
+	a := auth_interceptor.NewAuthUnaryInterceptor(interactor.NewAuthenticationUsecase())
+
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(a.UnaryAuthorizationInterceptor), grpc.Creds(creds))
+	loginServiceImpl := interactor.NewAuthenticationServiceImpl()
+	totpServiceImpl := interactor.NewTotpServiceImpl()
+
+	authentication_server.RegisterAuthenticationServer(grpcServer, loginServiceImpl)
+	authentication_server.RegisterTotpServer(grpcServer, totpServiceImpl)
+	go func() {
+		log.Fatalln(grpcServer.Serve(lis))
+	}()
+
+	logger.Logger.Info("server auth-service listening on port ", port)
+	//logger.Logger.Info("server auth-service listening on port 8091")
 	router.RunTLS(":8091", "certificate/cert.pem", "certificate/key.pem")
 }

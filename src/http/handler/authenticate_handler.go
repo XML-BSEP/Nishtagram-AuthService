@@ -52,7 +52,7 @@ type AuthenticationHandler interface {
 	SendResetMail(ctx *gin.Context)
 	ResetPassword(ctx *gin.Context)
 	RefreshToken(ctx *gin.Context)
-
+	Login1(ctx *gin.Context)
 }
 
 func NewAuthenticationHandler(authUsecase usecase.AuthenticationUsecase, jwtUSecase usecase.JwtUsecase, profileInfoUsecase usecase.ProfileInfoUsecase, tracer opentracing.Tracer, redis usecase.RedisUsecase, totpUsecase usecase.TotpUsecase, logger *logger.Logger) AuthenticationHandler {
@@ -299,8 +299,17 @@ func (r *authenticateHandler) SendResetMail(ctx *gin.Context) {
 }
 
 func (a *authenticateHandler) Login1(ctx *gin.Context) {
+	var authenticationDto dto.AuthenticationDto
 
-	ctx.JSON(200, gin.H{"message": "Sucessful logout"})
+	decoder := json.NewDecoder(ctx.Request.Body)
+
+	if err := decoder.Decode(&authenticationDto); err != nil {
+		ctx.JSON(400, gin.H{"message": body_decoding_err})
+		ctx.Abort()
+		return
+	}
+
+	ctx.JSON(200, gin.H{"username": authenticationDto.Username, "password" : authenticationDto.Password})
 }
 
 func (a *authenticateHandler) CreateTemporaryToken(ctx context.Context, profileInfo domain.ProfileInfo) (*dto.AuthenticatedUserInfoDto, error) {

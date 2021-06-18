@@ -20,6 +20,8 @@ type jwtUsecase struct {
 	logger *logger.Logger
 }
 
+
+
 func (j *jwtUsecase) RefreshToken(context context.Context, tokenString string) (*string, *string, error) {
 	span := tracer.StartSpanFromContext(context, "usecase/RefreshToken")
 	defer span.Finish()
@@ -52,9 +54,7 @@ func (j *jwtUsecase) RefreshToken(context context.Context, tokenString string) (
 		tracer.LogError(span, err)
 		return nil, nil, err
 	}
-	exp, err := j.ExtractExpiration(ctx1, tokenString)
 
-	err = j.RedisUsecase.AddKeyValueSet(ctx1, refreshToken + td.TokenUuid, tokenString, exp.Sub(time.Now()))
 
 	if err != nil {
 		tracer.LogError(span, err)
@@ -163,6 +163,7 @@ type JwtUsecase interface {
 	ExtractRole(context context.Context, tokenString string) (*string, error)
 	RefreshToken(context context.Context, tokenString string) (*string, *string, error)
 	DeleteRefreshToken(context context.Context, tokenUuid string) error
+	ValidateRefreshToken(context context.Context, refreshTokenUuid string) (*string, error)
 }
 func NewJwtUsecase(usecase RedisUsecase, logger *logger.Logger, authUsecase AuthenticationUsecase) JwtUsecase {
 	return &jwtUsecase{RedisUsecase: usecase, logger: logger, AuthenticationUsecase: authUsecase}
@@ -202,6 +203,8 @@ func (j *jwtUsecase) CreateAccessToken(context context.Context, role string, use
 
 func (j *jwtUsecase) ValidateToken(context context.Context, tokenString string) (string,error) {
 	j.logger.Logger.Infof("validating token")
+
+
 	token, err := verifyToken(tokenString)
 	if err != nil {
 		j.logger.Logger.Errorf("error while validating token, error: %v\n", err)
@@ -267,7 +270,7 @@ func (j *jwtUsecase) CreateRefreshToken(context context.Context, userId, role st
 	defer span.Finish()
 
 	td.RtExpires = time.Now().Add(time.Hour * 24 * 7).Unix()
-	td.RefreshUuid = td.TokenUuid
+	td.RefreshUuid = uuid.NewV4().String()
 
 
 	rtClaims := jwt.MapClaims{}
@@ -324,6 +327,11 @@ func (j *jwtUsecase) CreateToken(context context.Context, role, userId string, r
 	return td, nil
 
 
+}
+
+func (j *jwtUsecase) ValidateRefreshToken(context context.Context, refreshTokenUuid string) (*string, error) {
+
+	return nil, nil
 }
 
 

@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+option go_package = "Nishtagram-AuthService/sec/grpc/server/2fa_server";
+service Totp {
+  rpc Verify(TotpSecret) returns (BoolWrapper);
+  rpc IsEnabled(Username) returns (BoolWrapper);
+  rpc Disable(TotpSecret) returns (BoolWrapper);
+}
+
+
+
+message TotpSecret {
+  string passcode = 1;
+  string userId = 2;
+}
+
+message StringWrapper {
+  string content = 1;
+}
+
+message BoolWrapper {
+  bool value = 1;
+}
+
+message Username {
+  string username = 1;
+}

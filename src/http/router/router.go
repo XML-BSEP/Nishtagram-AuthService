@@ -3,9 +3,9 @@ package router
 import (
 	"auth-service/http/middleware"
 	"auth-service/interactor"
+	"github.com/gin-contrib/secure"
 	logger "github.com/jelena-vlajkov/logger/logger"
 
-	"github.com/gin-contrib/secure"
 	"github.com/gin-gonic/gin"
 )
 
@@ -30,6 +30,7 @@ func NewRouter(handler interactor.AppHandler, logger *logger.Logger) *gin.Engine
 	router.POST("/resetPasswordMail", handler.SendResetMail)
 	router.POST("/resetPassword", handler.ResetPassword)
 	router.POST("refreshToken", handler.RefreshToken)
+
 
 	return router
 }
