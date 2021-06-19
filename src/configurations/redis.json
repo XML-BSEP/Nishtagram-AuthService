@@ -1,10 +1,11 @@
 {
   "production" : false,
-  "docker" : true,
+  "docker" : false,
   "server" : {
-    "address_locahost" : "localhost",
+    "address_localhost" : "localhost",
     "address_docker" : "authredis",
-    "port" : 6379
+    "port_docker" : 6379,
+    "port_localhost" : 6380
   },
   "production_server" : {
 
