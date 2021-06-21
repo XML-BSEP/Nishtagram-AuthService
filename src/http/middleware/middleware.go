@@ -68,6 +68,7 @@ func AuthMiddleware(logger *logger.Logger) gin.HandlerFunc {
 func enforce(role string, obj string, act string, logger *logger.Logger) (bool, error) {
 	m, _ := os.Getwd()
 	fmt.Println(m)
+	fmt.Println(role)
 
 	if !strings.HasSuffix(m, "src")  {
 		splits := strings.Split(m, "src")

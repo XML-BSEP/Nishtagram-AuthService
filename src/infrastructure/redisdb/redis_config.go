@@ -7,7 +7,7 @@ import (
 )
 
 func init_viper(logger *logger.Logger) {
-	viper.SetConfigFile(`configurations/redis.json`)
+	viper.SetConfigFile(`src/configurations/redis.json`)
 	err := viper.ReadInConfig()
 	if err != nil {
 		logger.Logger.Fatalf("errow while reading redis config file, error: %v\n", err)
