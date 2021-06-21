@@ -4,6 +4,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	logger "github.com/jelena-vlajkov/logger/logger"
 	"github.com/spf13/viper"
+	"os"
 )
 
 func init_viper(logger *logger.Logger) {
@@ -17,7 +18,7 @@ func init_viper(logger *logger.Logger) {
 func NewReddisConn(logger *logger.Logger) *redis.Client {
 	init_viper(logger)
 	var address string
-	if viper.GetBool(`docker`){
+	if os.Getenv("DOCKER_ENV") != "" {
 		address = viper.GetString(`server.address_docker`)
 	}else{
 		address = viper.GetString(`server.address_localhost`)
