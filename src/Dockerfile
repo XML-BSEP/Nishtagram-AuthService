@@ -20,7 +20,6 @@ FROM alpine:latest
 
 WORKDIR /root/
 
-# Copy the Pre-built binary file from the previous stage
 COPY --from=builder /app/configurations ./src/configurations
 COPY --from=builder /app/certificate ./src/certificate
 COPY --from=builder /app/http ./src/http
@@ -33,6 +32,8 @@ COPY --from=builder /app/infrastructure ./src/infrastructure
 COPY --from=builder /app/interactor ./src/interactor
 COPY --from=builder /app/usecase ./src/usecase
 COPY --from=builder /app/repository ./src/repository
+
+
 COPY --from=builder /app/main .
 # Command to run the executable
 CMD ["./main"]
