@@ -15,7 +15,6 @@ require (
 	github.com/go-playground/validator v9.31.0+incompatible
 	github.com/go-redis/redis/v8 v8.8.3
 	github.com/go-resty/resty/v2 v2.6.0
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.2.0
 	github.com/jackc/pgproto3/v2 v2.0.7 // indirect
 	github.com/jelena-vlajkov/logger/logger v1.0.0

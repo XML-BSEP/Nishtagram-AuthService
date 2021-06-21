@@ -13,17 +13,24 @@ import (
 	"github.com/gin-gonic/gin"
 	logger "github.com/jelena-vlajkov/logger/logger"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"log"
 	"net"
+	"os"
+	"strconv"
 	"time"
 )
 
 func getNetListener(port uint) net.Listener {
-	lis, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	var domain string
+	if os.Getenv("DOCKER_ENV") == "" {
+		domain = "127.0.0.1"
+	} else {
+		domain = "authms"
+	}
+	domain = domain + ":" + strconv.Itoa(int(port))
+	lis, err := net.Listen("tcp", domain)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
-		panic(fmt.Sprintf("failed to listen: %v", err))
 	}
 
 	return lis
@@ -51,14 +58,14 @@ func main() {
 
 	port := uint(8079)
 	lis := getNetListener(port)
-	creds, err := credentials.NewServerTLSFromFile("certificate/cert.pem", "certificate/key.pem")
+	/*creds, err := credentials.NewServerTLSFromFile("src/certificate/cert.pem", "src/certificate/key.pem")
 	if err != nil {
 		panic(err)
-	}
+	}*/
 
 	a := auth_interceptor.NewAuthUnaryInterceptor(interactor.NewAuthenticationUsecase())
 
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(a.UnaryAuthorizationInterceptor), grpc.Creds(creds))
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(a.UnaryAuthorizationInterceptor))
 	loginServiceImpl := interactor.NewAuthenticationServiceImpl()
 	totpServiceImpl := interactor.NewTotpServiceImpl()
 
@@ -70,5 +77,15 @@ func main() {
 
 	logger.Logger.Info("server auth-service listening on port ", port)
 	//logger.Logger.Info("server auth-service listening on port 8091")
-	router.RunTLS(":8091", "certificate/cert.pem", "certificate/key.pem")
+	if os.Getenv("DOCKER_ENV") == "" {
+		err := router.RunTLS(":8091", "certificate/cert.pem", "certificate/key.pem")
+		if err != nil {
+			return
+		}
+	} else {
+		err := router.Run(":8091")
+		if err != nil {
+			return
+		}
+	}
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/viper"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"os"
 )
 
 func NewDBConnection(logger *logger.Logger) *gorm.DB {
@@ -13,7 +14,7 @@ func NewDBConnection(logger *logger.Logger) *gorm.DB {
 }
 
 func init_viper(logger *logger.Logger) {
-	viper.SetConfigFile(`configurations/postgresql.json`)
+	viper.SetConfigFile(`src/configurations/postgresql.json`)
 	err := viper.ReadInConfig()
 	if err != nil {
 		logger.Logger.Infof("error while reading postgresql config file, error: %v\n", err)
@@ -27,7 +28,7 @@ func init_viper(logger *logger.Logger) {
 func getConnection(logger *logger.Logger) *gorm.DB {
 	init_viper(logger)
 	var host string
-	if viper.GetBool(`docker`){
+	if os.Getenv("DOCKER_ENV") != "" {
 		host = viper.GetString(`database.host_docker`)
 	}else{
 		host = viper.GetString(`database.host_localhost`)

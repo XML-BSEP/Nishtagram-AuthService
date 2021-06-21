@@ -62,6 +62,7 @@ func NewAuthenticationHandler(authUsecase usecase.AuthenticationUsecase, jwtUSec
 
 func (a *authenticateHandler) Login(ctx *gin.Context) {
 	a.logger.Logger.Println("Handling LOGIN")
+	fmt.Println("tusam 1")
 	span := tracer.StartSpanFromRequest("Login", a.Tracer, ctx.Request)
 	defer span.Finish()
 	a.logMetadata(span, ctx)
@@ -77,6 +78,7 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 		return
 	}
 
+	fmt.Println(authenticationDto)
 	policy := bluemonday.UGCPolicy()
 	authenticationDto.Username = strings.TrimSpace(policy.Sanitize(authenticationDto.Username))
 	authenticationDto.Password = strings.TrimSpace(policy.Sanitize(authenticationDto.Password))
@@ -110,6 +112,7 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 
 	_, err = a.TotpUsecase.GetSecretByProfileInfoId(ctx1, profileInfo.ID)
 
+	fmt.Println("generating secret")
 	if err == nil {
 		userInfo, err := a.CreateTemporaryToken(ctx1, profileInfo)
 		if err != nil {
@@ -125,6 +128,7 @@ func (a *authenticateHandler) Login(ctx *gin.Context) {
 
 	val, err := a.generateToken(ctx1, profileInfo, authenticationDto.Refresh)
 
+	fmt.Println("generating token")
 	if err != nil {
 		a.logger.Logger.Errorf("error while generating token for %v, error: %v\n", profileInfo.ID, err)
 		ctx.JSON(400, gin.H{"message": token_err})
