@@ -33,8 +33,8 @@ type RegistrationUsecase interface {
 	ResendCode(ctx context.Context ,email string) (error, string, string)
 	ValidateAgentAccount(context context.Context, code string, email string) error
 	RegisterAgent(context context.Context, user domain.User) error
-	ConfirmAgentAccount(context context.Context, email string) error
-
+	ConfirmAgentAccount(context context.Context, email string, confirm bool) error
+	GetAgentRequests(context context.Context) ([]domain.User ,error)
 }
 
 func NewRegistrationUsecase(redisUsecase RedisUsecase, profileInfoUsecase ProfileInfoUsecase, gateway gateway.UserGateway, logger *logger.Logger) RegistrationUsecase{
@@ -298,7 +298,7 @@ func (s *registrationUsecase) RegisterAgent(context context.Context, user domain
 	return nil
 }
 
-func (s *registrationUsecase) ConfirmAgentAccount(context context.Context, email string) error {
+func (s *registrationUsecase) ConfirmAgentAccount(context context.Context, email string, confirm bool) error {
 	key := agentRegistrationRequest + email
 	bytes, err := s.RedisUsecase.GetValueByKey(context, key)
 	if err != nil {
@@ -315,18 +315,54 @@ func (s *registrationUsecase) ConfirmAgentAccount(context context.Context, email
 		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
 		return err
 	}
-	if err := s.ProfileInfoUsecase.Create(context, agentToProfleInfo(user)); err != nil {
-		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
-		return err
-	}
+	if confirm {
+		if err := s.ProfileInfoUsecase.Create(context, agentToProfleInfo(user)); err != nil {
+			s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
+			return err
+		}
 
-	/*if err := s.UserGateway.SaveRegisteredUser(context, user); err != nil {
-		return err
-	}*/
+		if err := s.UserGateway.SaveRegisteredUser(context, user); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
 
+func (s *registrationUsecase) GetAgentRequests(context context.Context) ([]domain.User, error) {
 
+
+	keys, err := s.RedisUsecase.ScanKeyByPattern(context, agentRegistrationRequest + "*")
+	if err != nil {
+		return nil, err
+	}
+
+	values, err := s.getValuesByKeys(context, keys)
+	if err != nil {
+		return nil, err
+	}
+
+	return values, nil
+}
+
+func (s *registrationUsecase) getValuesByKeys(context context.Context, keys []string) ([]domain.User, error) {
+
+
+	var values []domain.User
+
+	for _, key := range keys {
+		val, err := s.RedisUsecase.GetValueByKey(context, key)
+		if err != nil {
+			continue
+		}
+		user, err  := deserialize(val)
+		if err != nil {
+			continue
+		}
+		values = append(values, *user)
+	}
+
+	return values, nil
+}
 
 

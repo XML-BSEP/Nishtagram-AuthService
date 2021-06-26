@@ -6,6 +6,7 @@ import (
 	"auth-service/http/middleware"
 	router2 "auth-service/http/router"
 	"auth-service/infrastructure/postgresqldb"
+	"auth-service/infrastructure/redisdb"
 	"auth-service/infrastructure/seeder"
 	interactor2 "auth-service/interactor"
 	"context"
@@ -41,10 +42,11 @@ func main() {
 
 	logger := logger.InitializeLogger("auth-service", context.Background())
 	postgreConn := postgresqldb.NewDBConnection(logger)
-
+	redisClient := redisdb.NewReddisConn(logger)
 	seeder.SeedData(postgreConn)
+	redisClient.FlushAll(context.Background())
 
-	interactor := interactor2.NewInteractor(postgreConn, logger)
+	interactor := interactor2.NewInteractor(postgreConn, logger, redisClient)
 	appHandler := interactor.NewAppHandler()
 
 	router := router2.NewRouter(appHandler, logger)

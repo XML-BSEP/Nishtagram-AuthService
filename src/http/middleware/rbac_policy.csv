@@ -3,6 +3,7 @@ p, ANONYMOUS, /login, *
 p, ANONYMOUS, /register, *
 p, ANONYMOUS, /agent, *
 p, ANONYMOUS, /agent/validate, *
+p, ANONYMOUS, /confirmAgentAccount, *
 p, ANONYMOUS, /confirmAccount, *
 p, ANONYMOUS, /resendRegistrationCode, *
 p, ANONYMOUS, /logout, *

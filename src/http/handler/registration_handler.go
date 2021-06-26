@@ -27,6 +27,8 @@ type RegistrationHandler interface {
 	ResendCode(ctx *gin.Context)
 	RegisterAgent(ctx *gin.Context)
 	ValidateAgentAccount(ctx *gin.Context)
+	GetAgentRequests(ctx *gin.Context)
+	ConfirmAgentAccount(ctx *gin.Context)
 }
 
 func NewRegistrationHandler(registrationUsecase usecase.RegistrationUsecase, logger *logger.Logger) RegistrationHandler {
@@ -319,3 +321,33 @@ func (r *registrationHandler) ValidateAgentAccount(ctx *gin.Context) {
 	return
 }
 
+func (r *registrationHandler) GetAgentRequests(ctx *gin.Context) {
+
+	keys, err := r.RegistrationUsecase.GetAgentRequests(ctx)
+
+	if err != nil {
+		ctx.JSON(400, gin.H{"message" : "error"})
+		return
+	}
+
+	ctx.JSON(200, keys)
+}
+
+func (r *registrationHandler) ConfirmAgentAccount(ctx *gin.Context) {
+
+	decoder := json.NewDecoder(ctx.Request.Body)
+	var dto dto.ConfirmAgentAccountDto
+	if err := decoder.Decode(&dto); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message" : "Error decoding json"})
+		return
+	}
+
+
+	err := r.RegistrationUsecase.ConfirmAgentAccount(ctx, dto.Email, dto.Confirm)
+	if err != nil {
+		ctx.JSON(400, gin.H{"message" : "Error confirming account"})
+		return
+	}
+
+	ctx.JSON(400, gin.H{"message" : "Account confirmed successfully"})
+}
