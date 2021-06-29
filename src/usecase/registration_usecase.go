@@ -125,15 +125,46 @@ func (s *registrationUsecase) IsAlreadyRegistered(context context.Context, usern
 	if s.RedisUsecase.ExistsByKey(context, redisKey) {
 		return true
 	}
-	//TODO:Prefix scan with pattern and check if username already exists
+	keys, _ := s.RedisUsecase.ScanKeyByPattern(context, redisKeyPattern + "*")
+	values, err := s.getValuesByKeys(context, keys)
+	if err != nil {
+		return true
+	}
+	for _, it:= range values {
+		if it.Username == username {
+			return true
+		}
+	}
+
+
 	agentRegistrationRequestKey := agentRegistrationRequest + email
 	if s.RedisUsecase.ExistsByKey(context, agentRegistrationRequestKey) {
 		return true
+	}
+	keys, _ = s.RedisUsecase.ScanKeyByPattern(context, agentRegistrationRequest + "*")
+	values, err = s.getValuesByKeys(context, keys)
+	if err != nil {
+		return true
+	}
+	for _, it:= range values {
+		if it.Username == username {
+			return true
+		}
 	}
 
 	redisAgentKey := agent + email
 	if s.RedisUsecase.ExistsByKey(context, redisAgentKey) {
 		return true
+	}
+	keys, _ = s.RedisUsecase.ScanKeyByPattern(context, agent + "*")
+	values, err = s.getValuesByKeys(context, keys)
+	if err != nil {
+		return true
+	}
+	for _, it:= range values {
+		if it.Username == username {
+			return true
+		}
 	}
 
 	if s.ProfileInfoUsecase.ExistsByUsernameOrEmail(context, username, email) {

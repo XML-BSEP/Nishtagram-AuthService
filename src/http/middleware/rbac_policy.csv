@@ -3,20 +3,26 @@ p, ANONYMOUS, /login, *
 p, ANONYMOUS, /register, *
 p, ANONYMOUS, /agent, *
 p, ANONYMOUS, /agent/validate, *
-p, ANONYMOUS, /confirmAgentAccount, *
+p, ADMIN, /confirmAgentAccount, *
 p, ANONYMOUS, /confirmAccount, *
 p, ANONYMOUS, /resendRegistrationCode, *
 p, ANONYMOUS, /logout, *
 p, ANONYMOUS, /refreshToken, *
 p, USER, /verifySecret, *
+p, AGENT, /verifySecret, *
 p, ANONYMOUS, /isTotpEnabled, *
 p, USER, /isTotpEnabled, *
+p, AGENT, /isTotpEnabled, *
 p, USER, /disableTotp, *
+p, AGENT, /disableTotp, *
 p, TEMPORARY_USER, /validateTotp, *
 p, ANONYMOUS, /validateTemporaryToken, *
 p, USER, /resetPasswordMail, *
+p, AGENT, /resetPasswordMail, *
 p, USER, /resetPassword, *
+p, AGENT, /resetPassword, *
 p, USER, /generateSecret, *
+p, AGENT, /generateSecret, *
 
 
 
