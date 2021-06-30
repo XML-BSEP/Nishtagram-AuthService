@@ -14,17 +14,28 @@ type profileInfoRepository struct {
 	logger *logger.Logger
 }
 
+
 type ProfileInfoRepository interface {
 	GetProfileInfoByEmail(context context.Context, email string) (domain.ProfileInfo, error)
 	GetProfileInfoByUsername(context context.Context, username string) (domain.ProfileInfo, error)
 	Create(context context.Context, profileInfo *domain.ProfileInfo) error
-	GetProfileinfoByUsernameOrEmail(context context.Context, username, email string) error
+	GetProfileInfoByUsernameOrEmail(context context.Context, username, email string) error
 	GetProfileInfoById(context context.Context, id string) (*domain.ProfileInfo, error)
 	Update(context context.Context, profileInfo *domain.ProfileInfo) error
+	DeleteProfileInfo(context context.Context, username string) error
 }
 
 func NewProfileInfoRepository(conn *gorm.DB, logger *logger.Logger) ProfileInfoRepository {
 	return &profileInfoRepository{Conn: conn, logger: logger}
+}
+
+func (p *profileInfoRepository) DeleteProfileInfo(context context.Context, username string) error {
+	profile, err := p.GetProfileInfoByUsername(context, username)
+	if err != nil {
+		return err
+	}
+	p.Conn.Delete(&profile)
+	return nil
 }
 
 func (p *profileInfoRepository) GetProfileInfoByEmail(context context.Context, email string) (domain.ProfileInfo, error) {
@@ -75,7 +86,7 @@ func (p *profileInfoRepository) GetByUsernameOrEmail(context context.Context, us
 	return value, err
 }
 
-func (p *profileInfoRepository) GetProfileinfoByUsernameOrEmail(context context.Context, username, email string) error {
+func (p *profileInfoRepository) GetProfileInfoByUsernameOrEmail(context context.Context, username, email string) error {
 	var value *domain.ProfileInfo
 	err := p.Conn.Where("username = ? or email = ?", username, email).Take(&value).Error
 

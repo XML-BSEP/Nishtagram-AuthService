@@ -32,6 +32,7 @@ func NewRouter(handler interactor.AppHandler, logger *logger.Logger) *gin.Engine
 	router.POST("/agent/validate", handler.ValidateAgentAccount)
 	router.GET("/agent", handler.GetAgentRequests)
 	router.POST("/confirmAgentAccount", handler.ConfirmAgentAccount)
+	router.POST("/deleteProfileInfo", handler.DeleteProfileInfo)
 
 	return router
 }
