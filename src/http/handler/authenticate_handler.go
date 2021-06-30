@@ -27,6 +27,8 @@ const (
 	invalid_credentials_err = "Wrong username or password"
 	token_err               = "Can not create token"
 	totp_invalid_user_id    = "User id is not valid"
+	server_err 				= "Server error"
+
 )
 const (
 	redisKeyPattern = "passwordResetRequest"
@@ -53,11 +55,35 @@ type AuthenticationHandler interface {
 	ResetPassword(ctx *gin.Context)
 	RefreshToken(ctx *gin.Context)
 	Login1(ctx *gin.Context)
+	DeleteProfileInfo(ctx *gin.Context)
 }
 
 func NewAuthenticationHandler(authUsecase usecase.AuthenticationUsecase, jwtUSecase usecase.JwtUsecase, profileInfoUsecase usecase.ProfileInfoUsecase, tracer opentracing.Tracer, redis usecase.RedisUsecase, totpUsecase usecase.TotpUsecase, logger *logger.Logger) AuthenticationHandler {
 	return &authenticateHandler{authUsecase, jwtUSecase, profileInfoUsecase, totpUsecase, tracer, redis, logger}
 
+}
+
+func (a *authenticateHandler) DeleteProfileInfo(ctx *gin.Context) {
+	a.logger.Logger.Println("Handling DELETING PROFILE INFO")
+	var usernameDto dto.AuthenticationDto
+
+	decoder := json.NewDecoder(ctx.Request.Body)
+
+	if err := decoder.Decode(&usernameDto); err != nil {
+		ctx.JSON(400, gin.H{ "message" : body_decoding_err})
+		ctx.Abort()
+		return
+	}
+
+	err := a.ProfileInfoUsecase.DeleteProfileInfo(ctx, usernameDto.Username)
+
+	if err != nil {
+		ctx.JSON(500, gin.H{ "message" : server_err})
+		ctx.Abort()
+		return
+	}
+
+	ctx.JSON(200, gin.H{ "message" : "ok" })
 }
 
 func (a *authenticateHandler) Login(ctx *gin.Context) {

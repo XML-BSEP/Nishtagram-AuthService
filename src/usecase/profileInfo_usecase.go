@@ -16,6 +16,7 @@ type profileInfoUsecase struct {
 	logger *logger.Logger
 }
 
+
 const (
 	userNotFound             = "user not found"
 	emailNotSent             = "email not sent"
@@ -31,17 +32,20 @@ const (
 type ProfileInfoUsecase interface {
 	GetProfileInfoByUsername(context context.Context, username string) (domain.ProfileInfo, error)
 	GetProfileInfoByEmail(context context.Context, email string) (domain.ProfileInfo, error)
-
 	Create(context context.Context, profileInfo *domain.ProfileInfo) error
 	ExistsByUsernameOrEmail(context context.Context, username, email string) bool
 	GetProfileInfoById(context context.Context, id string) (*domain.ProfileInfo, error)
 	ResetPassword(ctx context.Context, dto dto.ResetPassDTO) string
+	DeleteProfileInfo(ctx context.Context, username string) error
 }
 
 func NewProfileInfoUsecase(p repository.ProfileInfoRepository, r RedisUsecase, logger *logger.Logger) ProfileInfoUsecase {
 	return &profileInfoUsecase{ProfileInfoRepository: p, RedisUsecase: r, logger: logger}
 }
 
+func (p *profileInfoUsecase) DeleteProfileInfo(ctx context.Context, username string) error {
+	return p.ProfileInfoRepository.DeleteProfileInfo(ctx, username)
+}
 func (p *profileInfoUsecase) GetProfileInfoByUsername(context context.Context, username string) (domain.ProfileInfo, error) {
 	p.logger.Logger.Infof("getting profile info by username for %v\n", username)
 	span := tracer.StartSpanFromContext(context, "usecase/GetProfileInfoByUsername")
@@ -128,7 +132,7 @@ func (p *profileInfoUsecase) ResetPassword(ctx context.Context, dto dto.ResetPas
 
 func (p *profileInfoUsecase) ExistsByUsernameOrEmail(context context.Context, username, email string) bool {
 	p.logger.Logger.Infof("checking if user exists")
-	if err := p.ProfileInfoRepository.GetProfileinfoByUsernameOrEmail(context, username, email); err != nil {
+	if err := p.ProfileInfoRepository.GetProfileInfoByUsernameOrEmail(context, username, email); err != nil {
 		return false
 	}
 	return true
