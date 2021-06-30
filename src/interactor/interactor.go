@@ -4,17 +4,17 @@ import (
 	"auth-service/gateway"
 	"auth-service/grpc/server/authentication_server/implementation"
 	"auth-service/http/handler"
-	"auth-service/infrastructure/redisdb"
 	"auth-service/infrastructure/tracer"
 	"auth-service/repository"
 	"auth-service/usecase"
+	"github.com/go-redis/redis/v8"
 	logger "github.com/jelena-vlajkov/logger/logger"
 	"io"
 
+	totp_implementation "auth-service/grpc/server/2fa_server/implementation"
 	resty2 "github.com/go-resty/resty/v2"
 	"github.com/opentracing/opentracing-go"
 	"gorm.io/gorm"
-	totp_implementation "auth-service/grpc/server/2fa_server/implementation"
 )
 
 const tracing_name = "auth_service"
@@ -24,6 +24,7 @@ type interactor struct {
 	Tracer opentracing.Tracer
 	Closer io.Closer
 	logger *logger.Logger
+	RedisClient *redis.Client
 }
 
 type Interactor interface {
@@ -61,7 +62,7 @@ type AppHandler interface {
 	handler.TotpHandler
 }
 
-func NewInteractor(conn *gorm.DB, logger *logger.Logger) Interactor {
+func NewInteractor(conn *gorm.DB, logger *logger.Logger, redisClient *redis.Client) Interactor {
 	tracer, closer := tracer.Init(tracing_name)
 	opentracing.SetGlobalTracer(tracer)
 	return &interactor{
@@ -69,6 +70,7 @@ func NewInteractor(conn *gorm.DB, logger *logger.Logger) Interactor {
 		Tracer: tracer,
 		Closer: closer,
 		logger: logger,
+		RedisClient: redisClient,
 	}
 }
 
@@ -88,8 +90,7 @@ func (i *interactor) NewRoleRepository() repository.RoleRepository {
 }
 
 func (i *interactor) NewRedisUsecase() usecase.RedisUsecase {
-	redis := redisdb.NewReddisConn(i.logger)
-	return usecase.NewRedisUsecase(redis, i.logger)
+	return usecase.NewRedisUsecase(i.RedisClient, i.logger)
 }
 
 func (i *interactor) NewAuthenticationUsecase() usecase.AuthenticationUsecase {

@@ -28,6 +28,10 @@ func NewRouter(handler interactor.AppHandler, logger *logger.Logger) *gin.Engine
 	router.POST("/resetPassword", handler.ResetPassword)
 	router.POST("refreshToken", handler.RefreshToken)
 
+	router.POST("/agent", handler.RegisterAgent)
+	router.POST("/agent/validate", handler.ValidateAgentAccount)
+	router.GET("/agent", handler.GetAgentRequests)
+	router.POST("/confirmAgentAccount", handler.ConfirmAgentAccount)
 
 	return router
 }

@@ -14,7 +14,9 @@ import (
 )
 
 const (
-	redisKeyPattern = "registrationRequest"
+	redisKeyPattern = "registrationRequest/"
+	agentRegistrationRequest = "agentRegistrationRequest/"
+	agent = "agent/"
 )
 type registrationUsecase struct {
 	RedisUsecase RedisUsecase
@@ -28,7 +30,11 @@ type RegistrationUsecase interface {
 	Register(context context.Context, user domain.User) error
 	ConfirmAccount(context context.Context, code string, email string) error
 	IsAlreadyRegistered(context context.Context, username, email string) bool
-	ResendCode(ctx context.Context, email string) (error, string, string)
+	ResendCode(ctx context.Context ,email string) (error, string, string)
+	ValidateAgentAccount(context context.Context, code string, email string) error
+	RegisterAgent(context context.Context, user domain.User) error
+	ConfirmAgentAccount(context context.Context, email string, confirm bool) error
+	GetAgentRequests(context context.Context) ([]domain.User ,error)
 }
 
 func NewRegistrationUsecase(redisUsecase RedisUsecase, profileInfoUsecase ProfileInfoUsecase, gateway gateway.UserGateway, logger *logger.Logger) RegistrationUsecase{
@@ -46,8 +52,6 @@ func (s *registrationUsecase) Register(context context.Context, user domain.User
 
 	confirmationCode := helper.RandomStringGenerator(8)
 	hashedConfirmationCode, err := Hash(confirmationCode)
-	fmt.Print("Generisan kod: " + confirmationCode)
-	fmt.Print("Hashovan kod: " + string(hashedConfirmationCode))
 	if err != nil {
 		s.logger.Logger.Errorf("error while registering user, error %v\n", err)
 		return err
@@ -121,6 +125,47 @@ func (s *registrationUsecase) IsAlreadyRegistered(context context.Context, usern
 	if s.RedisUsecase.ExistsByKey(context, redisKey) {
 		return true
 	}
+	keys, _ := s.RedisUsecase.ScanKeyByPattern(context, redisKeyPattern + "*")
+	values, err := s.getValuesByKeys(context, keys)
+	if err != nil {
+		return true
+	}
+	for _, it:= range values {
+		if it.Username == username {
+			return true
+		}
+	}
+
+
+	agentRegistrationRequestKey := agentRegistrationRequest + email
+	if s.RedisUsecase.ExistsByKey(context, agentRegistrationRequestKey) {
+		return true
+	}
+	keys, _ = s.RedisUsecase.ScanKeyByPattern(context, agentRegistrationRequest + "*")
+	values, err = s.getValuesByKeys(context, keys)
+	if err != nil {
+		return true
+	}
+	for _, it:= range values {
+		if it.Username == username {
+			return true
+		}
+	}
+
+	redisAgentKey := agent + email
+	if s.RedisUsecase.ExistsByKey(context, redisAgentKey) {
+		return true
+	}
+	keys, _ = s.RedisUsecase.ScanKeyByPattern(context, agent + "*")
+	values, err = s.getValuesByKeys(context, keys)
+	if err != nil {
+		return true
+	}
+	for _, it:= range values {
+		if it.Username == username {
+			return true
+		}
+	}
 
 	if s.ProfileInfoUsecase.ExistsByUsernameOrEmail(context, username, email) {
 		return true
@@ -135,6 +180,16 @@ func userToProfleInfo(user *domain.User) *domain.ProfileInfo{
 		Email: user.Email,
 		Password: user.Password,
 		RoleId : 3,
+	}
+
+}
+func agentToProfleInfo(user *domain.User) *domain.ProfileInfo{
+	return &domain.ProfileInfo{
+		ID: user.ID,
+		Username: user.Username,
+		Email: user.Email,
+		Password: user.Password,
+		RoleId : 2,
 	}
 
 }
@@ -165,7 +220,7 @@ func (s *registrationUsecase) ResendCode(ctx context.Context ,email string) (err
 
 	user.ConfirmationCode = string(hash)
 
-	redisKey := redisKeyPattern + email
+	redisKey := redisKeyPattern + user.Email
 
 	serializedUser, err := serialize(*user)
 	if err != nil {
@@ -201,6 +256,144 @@ func deserialize(bytesArray []byte) (*domain.User, error){
 	return decoded, nil
 }
 
+func (s *registrationUsecase) ValidateAgentAccount(context context.Context, code string, email string) error {
+	s.logger.Logger.Infof("confirming account for email %v\n", email)
+	key := agent + email
+	bytes, err := s.RedisUsecase.GetValueByKey(context, key)
+	if err != nil {
+		return err
+	}
 
+
+	user, err := deserialize(bytes)
+	if err != nil {
+		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
+		return err
+	}
+	fmt.Println("User id : " + user.ID)
+	if err := helper.Verify(code, user.ConfirmationCode); err != nil {
+		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
+		return err
+	}
+	if err := s.RedisUsecase.DeleteValueByKey(context, key); err != nil {
+		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
+		return err
+	}
+
+	regRequestKey := agentRegistrationRequest + email
+
+	if err := s.RedisUsecase.AddKeyValueSet(context, regRequestKey, bytes, time.Duration(0)); err != nil {
+		return err
+	}
+
+
+
+	return nil
+
+}
+
+func (s *registrationUsecase) RegisterAgent(context context.Context, user domain.User) error {
+	s.logger.Logger.Infof("registering user with email %v\n", user.Email)
+	redisKey := agent + user.Email
+
+	confirmationCode := helper.RandomStringGenerator(8)
+	hashedConfirmationCode, err := Hash(confirmationCode)
+	if err != nil {
+		s.logger.Logger.Errorf("error while registering user, error %v\n", err)
+		return err
+	}
+
+	hashedPassword, err := helper.Hash(user.Password)
+	if err != nil {
+		s.logger.Logger.Errorf("error while registering user, error %v\n", err)
+		return err
+	}
+
+	user.ID = uuid.NewString()
+	user.ConfirmationCode = string(hashedConfirmationCode)
+	user.Password = string(hashedPassword)
+
+
+	expiration  := 1000000000 * 3600 * 2 //2h
+	serializedUser, err := serialize(user)
+	if err != nil {
+		s.logger.Logger.Errorf("error while registering user, error %v\n", err)
+		return err
+	}
+	err = s.RedisUsecase.AddKeyValueSet(context, redisKey, serializedUser, time.Duration(expiration));
+	if err != nil {
+		return err
+	}
+
+	go SendMail(user.Email, user.Username, confirmationCode)
+	return nil
+}
+
+func (s *registrationUsecase) ConfirmAgentAccount(context context.Context, email string, confirm bool) error {
+	key := agentRegistrationRequest + email
+	bytes, err := s.RedisUsecase.GetValueByKey(context, key)
+	if err != nil {
+		return err
+	}
+
+
+	user, err := deserialize(bytes)
+	if err != nil {
+		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
+		return err
+	}
+	if err := s.RedisUsecase.DeleteValueByKey(context, key); err != nil {
+		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
+		return err
+	}
+	if confirm {
+		if err := s.ProfileInfoUsecase.Create(context, agentToProfleInfo(user)); err != nil {
+			s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
+			return err
+		}
+
+		if err := s.UserGateway.SaveRegisteredUser(context, user); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *registrationUsecase) GetAgentRequests(context context.Context) ([]domain.User, error) {
+
+
+	keys, err := s.RedisUsecase.ScanKeyByPattern(context, agentRegistrationRequest + "*")
+	if err != nil {
+		return nil, err
+	}
+
+	values, err := s.getValuesByKeys(context, keys)
+	if err != nil {
+		return nil, err
+	}
+
+	return values, nil
+}
+
+func (s *registrationUsecase) getValuesByKeys(context context.Context, keys []string) ([]domain.User, error) {
+
+
+	var values []domain.User
+
+	for _, key := range keys {
+		val, err := s.RedisUsecase.GetValueByKey(context, key)
+		if err != nil {
+			continue
+		}
+		user, err  := deserialize(val)
+		if err != nil {
+			continue
+		}
+		values = append(values, *user)
+	}
+
+	return values, nil
+}
 
 
