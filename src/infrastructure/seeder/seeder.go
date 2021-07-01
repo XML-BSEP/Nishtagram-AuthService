@@ -89,6 +89,14 @@ func seedProfiles(gorm *gorm.DB) {
 		Role: roleAdmin,
 	}
 
+	agent := domain.ProfileInfo{
+		Email: "agent1@gmail.com",
+		ID : "1d09bb0a-d9fc-11eb-b8bc-0242ac130003",
+		Username: "agent1",
+		Password: "$2y$12$fbhWKmsyK8UKF28N6AKtEeyK12ziEcMI69pWSTCXcunl5fM/x31GK", //agent1
+		Role: roleAgent,
+	}
+
 	gorm.Create(&profile1)
 	gorm.Create(&profile2)
 	gorm.Create(&profile3)
@@ -96,5 +104,6 @@ func seedProfiles(gorm *gorm.DB) {
 	gorm.Create(&profile5)
 	gorm.Create(&profile6)
 	gorm.Create(&admin)
+	gorm.Create(&agent)
 
 }
