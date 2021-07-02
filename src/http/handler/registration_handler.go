@@ -3,6 +3,7 @@ package handler
 import (
 	"auth-service/domain"
 	"auth-service/infrastructure/dto"
+	"auth-service/infrastructure/mapper"
 	validator2 "auth-service/infrastructure/validator"
 	"auth-service/usecase"
 	"encoding/json"
@@ -323,14 +324,15 @@ func (r *registrationHandler) ValidateAgentAccount(ctx *gin.Context) {
 
 func (r *registrationHandler) GetAgentRequests(ctx *gin.Context) {
 
-	keys, err := r.RegistrationUsecase.GetAgentRequests(ctx)
+	vals, err := r.RegistrationUsecase.GetAgentRequests(ctx)
 
+	agents := mapper.MapUserToAgentInformationDto(vals)
 	if err != nil {
 		ctx.JSON(400, gin.H{"message" : "error"})
 		return
 	}
 
-	ctx.JSON(200, keys)
+	ctx.JSON(200, agents)
 }
 
 func (r *registrationHandler) ConfirmAgentAccount(ctx *gin.Context) {
@@ -349,5 +351,5 @@ func (r *registrationHandler) ConfirmAgentAccount(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(400, gin.H{"message" : "Account confirmed successfully"})
+	ctx.JSON(200, gin.H{"message" : "Account confirmed successfully"})
 }
