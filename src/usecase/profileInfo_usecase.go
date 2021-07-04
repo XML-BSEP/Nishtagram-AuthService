@@ -32,7 +32,7 @@ const (
 type ProfileInfoUsecase interface {
 	GetProfileInfoByUsername(context context.Context, username string) (domain.ProfileInfo, error)
 	GetProfileInfoByEmail(context context.Context, email string) (domain.ProfileInfo, error)
-	Create(context context.Context, profileInfo *domain.ProfileInfo) error
+	Create(context context.Context, profileInfo *domain.ProfileInfo) (*domain.ProfileInfo, error)
 	ExistsByUsernameOrEmail(context context.Context, username, email string) bool
 	GetProfileInfoById(context context.Context, id string) (*domain.ProfileInfo, error)
 	ResetPassword(ctx context.Context, dto dto.ResetPassDTO) string
@@ -55,7 +55,7 @@ func (p *profileInfoUsecase) GetProfileInfoByUsername(context context.Context, u
 	return p.ProfileInfoRepository.GetProfileInfoByUsername(ctx1, username)
 }
 
-func (p *profileInfoUsecase) Create(context context.Context, profileInfo *domain.ProfileInfo) error {
+func (p *profileInfoUsecase) Create(context context.Context, profileInfo *domain.ProfileInfo) (*domain.ProfileInfo, error) {
 	p.logger.Logger.Infof("creating profile info for email %v\n", profileInfo.Email)
 	return p.ProfileInfoRepository.Create(context, profileInfo)
 }

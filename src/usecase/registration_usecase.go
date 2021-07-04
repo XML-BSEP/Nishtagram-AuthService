@@ -33,7 +33,7 @@ type RegistrationUsecase interface {
 	ResendCode(ctx context.Context ,email string) (error, string, string)
 	ValidateAgentAccount(context context.Context, code string, email string) error
 	RegisterAgent(context context.Context, user domain.User) error
-	ConfirmAgentAccount(context context.Context, email string, confirm bool) error
+	ConfirmAgentAccount(context context.Context, email string, confirm bool) (*domain.User, error)
 	GetAgentRequests(context context.Context) ([]domain.User ,error)
 }
 
@@ -107,7 +107,7 @@ func (s *registrationUsecase) ConfirmAccount(context context.Context, code strin
 		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
 		return err
 	}
-	if err := s.ProfileInfoUsecase.Create(context, userToProfleInfo(user)); err != nil {
+	if _, err := s.ProfileInfoUsecase.Create(context, userToProfleInfo(user)); err != nil {
 		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
 		return err
 	}
@@ -329,35 +329,35 @@ func (s *registrationUsecase) RegisterAgent(context context.Context, user domain
 	return nil
 }
 
-func (s *registrationUsecase) ConfirmAgentAccount(context context.Context, email string, confirm bool) error {
+func (s *registrationUsecase) ConfirmAgentAccount(context context.Context, email string, confirm bool) (*domain.User, error) {
 	key := agentRegistrationRequest + email
 	bytes, err := s.RedisUsecase.GetValueByKey(context, key)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
 
 	user, err := deserialize(bytes)
 	if err != nil {
 		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
-		return err
+		return nil, err
 	}
 	if err := s.RedisUsecase.DeleteValueByKey(context, key); err != nil {
 		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
-		return err
+		return nil, err
 	}
 	if confirm {
-		if err := s.ProfileInfoUsecase.Create(context, agentToProfleInfo(user)); err != nil {
+		_, err = s.ProfileInfoUsecase.Create(context, agentToProfleInfo(user))
+		if err != nil {
 			s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
-			return err
+			return nil, err
 		}
 
-		if err := s.UserGateway.SaveRegisteredUser(context, user); err != nil {
-			return err
-		}
+		/*if err := s.UserGateway.SaveRegisteredUser(context, user); err != nil {
+			return nil, err
+		}*/
 	}
 
-	return nil
+	return user, nil
 }
 
 func (s *registrationUsecase) GetAgentRequests(context context.Context) ([]domain.User, error) {

@@ -345,7 +345,7 @@ func (r *registrationHandler) ConfirmAgentAccount(ctx *gin.Context) {
 	}
 
 
-	err := r.RegistrationUsecase.ConfirmAgentAccount(ctx, dto.Email, dto.Confirm)
+	_, err := r.RegistrationUsecase.ConfirmAgentAccount(ctx, dto.Email, dto.Confirm)
 	if err != nil {
 		ctx.JSON(400, gin.H{"message" : "Error confirming account"})
 		return

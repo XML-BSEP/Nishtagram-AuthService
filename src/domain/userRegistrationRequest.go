@@ -1,6 +1,6 @@
 package domain
 
-//TODO stavi u malo
+
 type UserRegistrationRequest struct {
 	Email	string	`json:"email" validate:"required,email"`
 	Name	string	`json:"name" validate:"required,name"`
