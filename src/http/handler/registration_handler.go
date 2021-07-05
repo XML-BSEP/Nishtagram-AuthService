@@ -4,6 +4,7 @@ import (
 	"auth-service/domain"
 	"auth-service/infrastructure/dto"
 	"auth-service/infrastructure/mapper"
+	"auth-service/infrastructure/saga"
 	validator2 "auth-service/infrastructure/validator"
 	"auth-service/usecase"
 	"encoding/json"
@@ -18,7 +19,7 @@ import (
 type registrationHandler struct {
 	RegistrationUsecase usecase.RegistrationUsecase
 	logger *logger.Logger
-
+	Orchestrator saga.Orchestrator
 }
 
 
@@ -32,8 +33,8 @@ type RegistrationHandler interface {
 	ConfirmAgentAccount(ctx *gin.Context)
 }
 
-func NewRegistrationHandler(registrationUsecase usecase.RegistrationUsecase, logger *logger.Logger) RegistrationHandler {
-	return &registrationHandler{RegistrationUsecase: registrationUsecase, logger: logger}
+func NewRegistrationHandler(registrationUsecase usecase.RegistrationUsecase, logger *logger.Logger, orchestrator saga.Orchestrator) RegistrationHandler {
+	return &registrationHandler{RegistrationUsecase: registrationUsecase, logger: logger, Orchestrator: orchestrator}
 }
 
 func (r *registrationHandler) Register(ctx *gin.Context) {
@@ -345,11 +346,25 @@ func (r *registrationHandler) ConfirmAgentAccount(ctx *gin.Context) {
 	}
 
 
-	_, err := r.RegistrationUsecase.ConfirmAgentAccount(ctx, dto.Email, dto.Confirm)
+
+	user, err := r.RegistrationUsecase.ConfirmAgentAccount(ctx, dto.Email, dto.Confirm)
 	if err != nil {
 		ctx.JSON(400, gin.H{"message" : "Error confirming account"})
 		return
 	}
+	if !dto.Confirm {
+		ctx.JSON(200, gin.H{"message" : "Account declined successfully"})
+		return
+	}
+
+	m := saga.Message{
+		Action: saga.ActionStart,
+		Service: saga.UserService,
+		SenderService: saga.AuthService,
+		Payload: *user,
+		Confirm: dto.Confirm,
+	}
+	r.Orchestrator.Next(ctx, saga.UserChannel, saga.UserService, m)
 
 	ctx.JSON(200, gin.H{"message" : "Account confirmed successfully"})
 }

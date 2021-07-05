@@ -35,7 +35,7 @@ func (p *profileInfoRepository) DeleteProfileInfo(context context.Context, usern
 		return err
 	}*/
 
-	if err := p.Conn.Where("username = ?", username).Delete(&domain.ProfileInfo{}).Error; err != nil {
+	if err := p.Conn.Unscoped().Where("username = ?", username).Delete(&domain.ProfileInfo{}).Error; err != nil {
 		return err
 	}
 	return nil

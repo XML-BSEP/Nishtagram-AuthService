@@ -35,6 +35,7 @@ type RegistrationUsecase interface {
 	RegisterAgent(context context.Context, user domain.User) error
 	ConfirmAgentAccount(context context.Context, email string, confirm bool) (*domain.User, error)
 	GetAgentRequests(context context.Context) ([]domain.User ,error)
+	RollbackAgentRegistration(context context.Context, user domain.User) error
 }
 
 func NewRegistrationUsecase(redisUsecase RedisUsecase, profileInfoUsecase ProfileInfoUsecase, gateway gateway.UserGateway, logger *logger.Logger) RegistrationUsecase{
@@ -270,7 +271,7 @@ func (s *registrationUsecase) ValidateAgentAccount(context context.Context, code
 		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
 		return err
 	}
-	fmt.Println("User id : " + user.ID)
+
 	if err := helper.Verify(code, user.ConfirmationCode); err != nil {
 		s.logger.Logger.Errorf("error while confirming account, error %v\n", err)
 		return err
@@ -394,6 +395,23 @@ func (s *registrationUsecase) getValuesByKeys(context context.Context, keys []st
 	}
 
 	return values, nil
+}
+
+func (s *registrationUsecase) RollbackAgentRegistration(context context.Context, user domain.User) error {
+	regRequestKey := agentRegistrationRequest + user.Email
+
+	serializedUser, err := serialize(user)
+	if err != nil {
+		return err
+	}
+
+	if err := s.RedisUsecase.AddKeyValueSet(context, regRequestKey, serializedUser, time.Duration(0)); err != nil {
+		return err
+	}
+
+
+
+	return nil
 }
 
 

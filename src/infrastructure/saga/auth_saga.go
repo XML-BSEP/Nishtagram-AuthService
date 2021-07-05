@@ -55,7 +55,7 @@ func (a *authSaga) SagaAuth(context context.Context) {
 					newUser, err := a.registartionUsecase.ConfirmAgentAccount(context, user.Email, m.Confirm)
 					m.Payload = *newUser
 					if err != nil {
-						break
+						continue
 					}
 
 					sendToReplyChannel(context, a.redisClient, m, ActionDone, AuthService, UserService)
@@ -64,7 +64,11 @@ func (a *authSaga) SagaAuth(context context.Context) {
 				if m.Action == ActionRollback {
 					user := m.Payload
 					if err := a.profileInfoUsecase.DeleteProfileInfo(context, user.Username); err != nil {
-						break
+						continue
+					}
+
+					if err := a.registartionUsecase.RollbackAgentRegistration(context, user); err != nil {
+						continue
 					}
 				}
 			}
@@ -77,7 +81,8 @@ func sendToReplyChannel(context context.Context, client *redis.Client, m Message
 	m.Action = action
 	m.Service = service
 	m.SenderService = senderService
-	if err = client.Publish(context, ReplyChannel, m).Err(); err != nil {
+	binaryMessage, _ := MarshalBinary(&m)
+	if err = client.Publish(context, ReplyChannel, binaryMessage).Err(); err != nil {
 		log.Printf("error publishing done-message to %s channel", ReplyChannel)
 	}
 	log.Printf("done message published to channel :%s", ReplyChannel)

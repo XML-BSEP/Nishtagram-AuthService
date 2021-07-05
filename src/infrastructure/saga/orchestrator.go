@@ -34,7 +34,7 @@ func NewOrchestrator(context context.Context, c *redis.Client) Orchestrator {
 
 	return &orchestrator{
 		redisClient: c,
-		redisPubSub: c.Subscribe(context, AuthChannel, UserChannel),
+		redisPubSub: c.Subscribe(context, AuthChannel, UserChannel, ReplyChannel),
 	}
 }
 
@@ -52,7 +52,6 @@ func (o *orchestrator) Start(context context.Context) {
 		case msg := <- ch:
 			m := Message{}
 			if err := json.Unmarshal([]byte(msg.Payload), &m); err != nil {
-				log.Println()
 				continue
 			}
 
@@ -77,7 +76,8 @@ func (o *orchestrator) Rollback(context context.Context, m Message) {
 	}
 
 	m.Action = ActionRollback
-	if err := o.redisClient.Publish(context, channel, m).Err(); err != nil {
+	binaryMessage, _ := MarshalBinary(&m)
+	if err := o.redisClient.Publish(context, channel, binaryMessage).Err(); err != nil {
 		log.Printf("error publishing rollback message to %s channel", channel)
 	}
 
@@ -86,7 +86,8 @@ func (o *orchestrator) Rollback(context context.Context, m Message) {
 func (o *orchestrator) Next(context context.Context, channel string, service string, m Message) {
 	m.Action = ActionStart
 	m.Service = service
-	if err := o.redisClient.Publish(context, channel, m).Err(); err != nil {
+	binaryMessage, _ := MarshalBinary(&m)
+	if err := o.redisClient.Publish(context, channel, binaryMessage).Err(); err != nil {
 		log.Printf("error publishing start-message to %s channel", channel)
 		log.Fatal(err)
 	}
