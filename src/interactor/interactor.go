@@ -4,6 +4,7 @@ import (
 	"auth-service/gateway"
 	"auth-service/grpc/server/authentication_server/implementation"
 	"auth-service/http/handler"
+	"auth-service/infrastructure/saga"
 	"auth-service/infrastructure/tracer"
 	"auth-service/repository"
 	"auth-service/usecase"
@@ -25,6 +26,8 @@ type interactor struct {
 	Closer io.Closer
 	logger *logger.Logger
 	RedisClient *redis.Client
+	SagaRedisClient *redis.Client
+	Orchestrator saga.Orchestrator
 }
 
 type Interactor interface {
@@ -62,7 +65,7 @@ type AppHandler interface {
 	handler.TotpHandler
 }
 
-func NewInteractor(conn *gorm.DB, logger *logger.Logger, redisClient *redis.Client) Interactor {
+func NewInteractor(conn *gorm.DB, logger *logger.Logger, redisClient *redis.Client, sagaRedisClient *redis.Client, orchestrator saga.Orchestrator) Interactor {
 	tracer, closer := tracer.Init(tracing_name)
 	opentracing.SetGlobalTracer(tracer)
 	return &interactor{
@@ -71,6 +74,8 @@ func NewInteractor(conn *gorm.DB, logger *logger.Logger, redisClient *redis.Clie
 		Closer: closer,
 		logger: logger,
 		RedisClient: redisClient,
+		SagaRedisClient: sagaRedisClient,
+		Orchestrator: orchestrator,
 	}
 }
 
@@ -115,7 +120,7 @@ func (i *interactor) NewRegistrationUsecase() usecase.RegistrationUsecase {
 }
 
 func (i *interactor) NewRegistrationHandler() handler.RegistrationHandler {
-	return handler.NewRegistrationHandler(i.NewRegistrationUsecase(), i.logger)
+	return handler.NewRegistrationHandler(i.NewRegistrationUsecase(), i.logger, i.Orchestrator)
 }
 
 func (i *interactor) NewUserGateway() gateway.UserGateway {

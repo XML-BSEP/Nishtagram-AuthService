@@ -7,10 +7,11 @@ import (
 	router2 "auth-service/http/router"
 	"auth-service/infrastructure/postgresqldb"
 	"auth-service/infrastructure/redisdb"
+	"auth-service/infrastructure/saga"
+	"auth-service/infrastructure/saga_redisdb"
 	"auth-service/infrastructure/seeder"
 	interactor2 "auth-service/interactor"
 	"context"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	logger "github.com/jelena-vlajkov/logger/logger"
 	"google.golang.org/grpc"
@@ -18,7 +19,6 @@ import (
 	"net"
 	"os"
 	"strconv"
-	"time"
 )
 
 func getNetListener(port uint) net.Listener {
@@ -45,18 +45,24 @@ func main() {
 	redisClient := redisdb.NewReddisConn(logger)
 	seeder.SeedData(postgreConn)
 	redisClient.FlushAll(context.Background())
+	sagaRedisClient := saga_redisdb.NewSagaRedis(logger)
+	sagaRedisClient.FlushAll(context.Background())
 
-	interactor := interactor2.NewInteractor(postgreConn, logger, redisClient)
+	orchestrator := saga.NewOrchestrator(context.Background(), sagaRedisClient)
+	go orchestrator.Start(context.Background())
+
+	interactor := interactor2.NewInteractor(postgreConn, logger, redisClient, sagaRedisClient, orchestrator)
 	appHandler := interactor.NewAppHandler()
+
 
 	router := router2.NewRouter(appHandler, logger)
 	router.Use(gin.Logger())
 	router.Use(middleware.CORSMiddleware())
 
-	redis := interactor.NewRedisUsecase()
-	redis.AddKeyValueSet(context.Background(), "aaa", "111", time.Duration(1000000000000000000))
-	value, _ := redis.GetValueByKey(context.Background(), "aaa")
-	fmt.Println(value)
+
+	authSaga := saga.NewAuthSaga(interactor.NewProfileInfoUsecase(), interactor.NewRegistrationUsecase(), sagaRedisClient)
+	go authSaga.SagaAuth(context.Background())
+
 
 	port := uint(8079)
 	lis := getNetListener(port)

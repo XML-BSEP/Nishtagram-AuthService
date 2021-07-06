@@ -1,0 +1,13 @@
+{
+  "production" : false,
+  "docker" : false,
+  "server" : {
+    "address_localhost" : "localhost",
+    "address_docker" : "sagaredis",
+    "port_docker" : 6379,
+    "port_localhost" : 6381
+  },
+  "production_server" : {
+
+  }
+}

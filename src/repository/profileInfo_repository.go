@@ -18,7 +18,7 @@ type profileInfoRepository struct {
 type ProfileInfoRepository interface {
 	GetProfileInfoByEmail(context context.Context, email string) (domain.ProfileInfo, error)
 	GetProfileInfoByUsername(context context.Context, username string) (domain.ProfileInfo, error)
-	Create(context context.Context, profileInfo *domain.ProfileInfo) error
+	Create(context context.Context, profileInfo *domain.ProfileInfo) (*domain.ProfileInfo, error)
 	GetProfileInfoByUsernameOrEmail(context context.Context, username, email string) error
 	GetProfileInfoById(context context.Context, id string) (*domain.ProfileInfo, error)
 	Update(context context.Context, profileInfo *domain.ProfileInfo) error
@@ -30,11 +30,14 @@ func NewProfileInfoRepository(conn *gorm.DB, logger *logger.Logger) ProfileInfoR
 }
 
 func (p *profileInfoRepository) DeleteProfileInfo(context context.Context, username string) error {
-	profile, err := p.GetProfileInfoByUsername(context, username)
+	/*profile, err := p.GetProfileInfoByUsername(context, username)
 	if err != nil {
 		return err
+	}*/
+
+	if err := p.Conn.Unscoped().Where("username = ?", username).Delete(&domain.ProfileInfo{}).Error; err != nil {
+		return err
 	}
-	p.Conn.Delete(&profile)
 	return nil
 }
 
@@ -62,12 +65,13 @@ func (p *profileInfoRepository) GetProfileInfoByUsername(context context.Context
 	return profileInfo, err
 }
 
-func (p *profileInfoRepository) Create(context context.Context, profileInfo *domain.ProfileInfo) error {
+func (p *profileInfoRepository) Create(context context.Context, profileInfo *domain.ProfileInfo) (*domain.ProfileInfo, error) {
 	err := p.Conn.Create(profileInfo).Error
 	if err != nil {
 		p.logger.Logger.Errorf("error while creating profile info for email %v, error: %v\n", profileInfo.Email, err)
+		return nil, err
 	}
-	return err
+	return profileInfo, nil
 }
 func (p *profileInfoRepository) Update(context context.Context, profileInfo *domain.ProfileInfo) error {
 	err := p.Conn.Save(profileInfo).Error
