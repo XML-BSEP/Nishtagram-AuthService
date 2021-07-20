@@ -2,6 +2,7 @@ package router
 
 import (
 	"auth-service/http/middleware"
+	"auth-service/http/middleware/prometheus_middleware"
 	"auth-service/interactor"
 	logger "github.com/jelena-vlajkov/logger/logger"
 
@@ -10,7 +11,11 @@ import (
 
 func NewRouter(handler interactor.AppHandler, logger *logger.Logger) *gin.Engine {
 	router := gin.Default()
+	counterReq := prometheus_middleware.GetHttpRequestsCounter()
+	router.Use(prometheus_middleware.PrometheusMiddleware(counterReq))
+	router.GET("/metrics", prometheus_middleware.PrometheusGinHandler())
 	router.Use(middleware.AuthMiddleware(logger))
+
 
 	router.POST("/validateToken", handler.ValidateToken)
 	router.POST("/login", handler.Login)
@@ -33,6 +38,7 @@ func NewRouter(handler interactor.AppHandler, logger *logger.Logger) *gin.Engine
 	router.GET("/agent", handler.GetAgentRequests)
 	router.POST("/confirmAgentAccount", handler.ConfirmAgentAccount)
 	router.POST("/deleteProfileInfo", handler.DeleteProfileInfo)
+
 
 	return router
 }

@@ -24,6 +24,7 @@ p, AGENT, /resetPassword, *
 p, USER, /generateSecret, *
 p, AGENT, /generateSecret, *
 p, ANONYMOUS, /deleteProfileInfo, *
+p, ANONYMOUS, /metrics, *
 
 
 
